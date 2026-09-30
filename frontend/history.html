@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>History — CropSense</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+body{background:#eef2ee;padding-top:64px;}
+.hist-topbar{background:white;border-bottom:1px solid var(--line);padding:20px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.hist-topbar h2{font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);}
+.btn-back{padding:9px 20px;background:#e8f5ee;color:var(--moss);border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;}
+.hist-body{max-width:900px;margin:0 auto;padding:36px 48px;}
+.hist-empty{text-align:center;padding:80px 20px;}
+.hist-empty-icon{font-size:64px;opacity:.25;margin-bottom:16px;}
+.hist-empty-t{font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);margin-bottom:8px;}
+.hist-item{background:white;border-radius:18px;padding:20px 28px;margin-bottom:14px;box-shadow:0 4px 12px rgba(0,0,0,0.08);border-left:3px solid #52b788;}
+.hist-date{font-size:12px;color:#6b7280;margin-bottom:8px;}
+.hist-params{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.hist-param{padding:4px 12px;background:#f3f4f6;border-radius:20px;font-size:12px;}
+.hist-crops-row{display:flex;flex-wrap:wrap;gap:8px;}
+.hcr-chip{padding:5px 14px;background:#e8f5ee;color:#2d6a4f;border-radius:20px;font-size:13px;}
+.loading{text-align:center;padding:40px;}
+</style>
+</head>
+<body>
+
+<nav id="global-nav">
+  <a class="nav-logo" href="index.html">Crop<span>Sense</span></a>
+  <div class="nav-right" id="nav-right"></div>
+</nav>
+
+<div class="hist-topbar">
+  <h2>📜 Recommendation History</h2>
+  <a class="btn-back" href="dashboard.html">← Back to Dashboard</a>
+</div>
+
+<div class="hist-body">
+  <div id="hist-content" class="loading">Loading...</div>
+</div>
+
+<div id="footer-mount"></div>
+
+<script src="data.js?v=3"></script>
+<script>
+// API_BASE is already defined in data.js - DO NOT redeclare!
+
+// Check login
+if (!SS.user) {
+    window.location.href = 'auth.html';
+}
+
+async function loadHistory() {
+    const userId = SS.user_id;
+    
+    if (!userId) {
+        document.getElementById('hist-content').innerHTML = `
+            <div class="hist-empty">
+                <div class="hist-empty-icon">🔒</div>
+                <div class="hist-empty-t">Please Login</div>
+                <div class="hist-empty-s">You need to be logged in to view history.</div>
+                <a class="btn-back" href="auth.html">→ Login</a>
+            </div>`;
+        return;
+    }
+    
+    try {
+        // Use API_BASE from data.js (already defined)
+        const response = await fetch(`${API_BASE}/api/history/${userId}`);
+        const data = await response.json();
+        
+        console.log("History data:", data);
+        
+        if (data.success && data.history && data.history.length > 0) {
+            displayHistory(data.history);
+        } else {
+            document.getElementById('hist-content').innerHTML = `
+                <div class="hist-empty">
+                    <div class="hist-empty-icon">📜</div>
+                    <div class="hist-empty-t">No History Yet</div>
+                    <div class="hist-empty-s">Get recommendations while logged in to see them here.</div>
+                    <a class="btn-back" href="dashboard.html">→ Go to Dashboard</a>
+                </div>`;
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        document.getElementById('hist-content').innerHTML = `
+            <div class="hist-empty">
+                <div class="hist-empty-icon">⚠️</div>
+                <div class="hist-empty-t">Connection Error</div>
+                <div class="hist-empty-s">Make sure backend is running on port 5000</div>
+            </div>`;
+    }
+}
+
+function displayHistory(histories) {
+    const itemsHtml = histories.map((h, i) => `
+        <div class="hist-item">
+            <div class="hist-date">📅 ${new Date(h.timestamp).toLocaleString()}</div>
+            <div class="hist-params">
+                <span class="hist-param">🪴 ${h.soil_type}</span>
+                <span class="hist-param">🌡 ${h.temperature}°C</span>
+                <span class="hist-param">🌧 ${h.rainfall}mm</span>
+                <span class="hist-param">💧 ${h.humidity}%</span>
+                <span class="hist-param">🧪 pH ${h.ph_value}</span>
+                <span class="hist-param">🌱 N:${h.N_value} P:${h.P_value} K:${h.K_value}</span>
+            </div>
+            <div class="hist-crops-row">
+                <span class="hcr-chip">🥇 ${h.top_crop_1}</span>
+                ${h.top_crop_2 ? `<span class="hcr-chip">🥈 ${h.top_crop_2}</span>` : ''}
+                ${h.top_crop_3 ? `<span class="hcr-chip">🥉 ${h.top_crop_3}</span>` : ''}
+            </div>
+        </div>
+    `).reverse().join('');
+    
+    document.getElementById('hist-content').innerHTML = `
+        <div style="margin-bottom:16px; font-size:14px; color:#6b7280;">📊 Total ${histories.length} analyses</div>
+        ${itemsHtml}
+    `;
+}
+
+// Setup nav and footer
+document.getElementById('nav-right').innerHTML = buildUserNav();
+document.getElementById('footer-mount').innerHTML = footerHTML();
+
+// Load history
+loadHistory();
+</script>
+</body>
+</html>

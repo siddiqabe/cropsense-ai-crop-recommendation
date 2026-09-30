@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — CropSense</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+/* YOUR EXISTING STYLES - KEEP AS IS */
+body{background:#eef2ee;padding-top:64px;}
+.dash-topbar{background:white;border-bottom:1px solid var(--line);padding:20px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.dash-greeting{font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);}
+.dash-sub{font-size:13px;color:var(--muted);margin-top:3px;}
+.dash-topbar-btns{display:flex;gap:10px;}
+.dqb{padding:9px 18px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s;text-decoration:none;display:inline-block;}
+.dqb-hist{background:#e8f5ee;color:var(--moss);}.dqb-hist:hover{background:#d1eedd;}
+.dqb-print{background:#f0f4ff;color:#4f6ef7;}.dqb-print:hover{background:#e0e8ff;}
+
+.dash-layout { 
+    max-width: 1300px; 
+    margin: 0 auto;
+    padding: 32px 48px;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 28px;
+    align-items: start;
+}
+
+.dash-left {
+    position: sticky;
+    top: 88px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.dash-left::-webkit-scrollbar {width: 4px;}
+.dash-left::-webkit-scrollbar-track {background: transparent;}
+.dash-left::-webkit-scrollbar-thumb {background: var(--mint);border-radius: 3px;}
+
+.dash-right {position: sticky;top: 88px;}
+
+.form-card{
+    background:white;
+    border-radius:22px;
+    padding:32px;
+    box-shadow:var(--card-shadow);
+    border:1px solid rgba(82,183,136,.08);
+}
+.form-card-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);margin-bottom:4px;}
+.form-card-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.ff{margin-bottom:18px;}
+.ff label{display:block;font-size:12px;font-weight:600;color:var(--forest);margin-bottom:7px;text-transform:uppercase;letter-spacing:.6px;}
+.ff select,.ff input[type=number]{width:100%;padding:11px 14px;background:#f9fafb;border:2px solid #e5e7eb;border-radius:12px;font-size:14px;color:var(--ink);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;cursor:pointer;}
+.ff select:focus,.ff input[type=number]:focus{border-color:var(--sage);background:white;}
+.range-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.range-row input[type=range]{flex:1;accent-color:var(--sage);}
+.range-val{min-width:54px;text-align:center;font-size:13px;font-weight:600;color:var(--moss);background:#e8f5ee;padding:4px 8px;border-radius:8px;}
+.soil-hint{margin-top:7px;font-size:12px;color:var(--muted);}
+.btn-rec{width:100%;padding:15px;margin-top:8px;background:linear-gradient(135deg,var(--moss),var(--sage));color:white;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;transition:all .3s;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(45,106,79,.35);display:flex;align-items:center;justify-content:center;gap:10px;}
+.btn-rec:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(45,106,79,.5);}
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+.btn-rec.loading .spinner{display:block;}.btn-rec.loading .btn-text{display:none;}
+
+
+
+.mini-card{background:white;border-radius:22px;padding:24px;box-shadow:var(--card-shadow);border:1px solid rgba(82,183,136,.08);margin-top:20px;}
+.mini-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--forest);margin-bottom:14px;}
+.stabs{display:flex;gap:4px;background:#f3f4f6;border-radius:10px;padding:3px;margin-bottom:14px;}
+.stab{flex:1;padding:8px 6px;text-align:center;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);border:none;background:transparent;transition:all .2s;}
+.stab.active{background:white;color:var(--forest);box-shadow:0 1px 6px rgba(0,0,0,.1);}
+.season-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.s-chip{padding:5px 12px;background:#e8f5ee;color:var(--moss);border-radius:20px;font-size:12px;font-weight:500;border:1px solid #c8e6d4;cursor:pointer;transition:all .2s;}
+.s-chip:hover{background:var(--sage);color:white;}
+
+.market-card{background:linear-gradient(135deg,var(--forest),var(--deep));border-radius:22px;padding:24px;box-shadow:var(--card-shadow);margin-top:20px;}
+.market-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--mint);margin-bottom:14px;}
+.ticker-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.06);border-radius:10px;font-size:13px;margin-bottom:6px;}
+.ticker-crop{color:rgba(255,255,255,.8);font-weight:500;}
+.ticker-price{color:var(--gold);font-weight:700;font-family:'Playfair Display',serif;}
+
+.results-placeholder{background:white;border-radius:22px;padding:72px 32px;text-align:center;box-shadow:var(--card-shadow);border:2px dashed var(--line);}
+.rp-icon{font-size:72px;opacity:.3;margin-bottom:20px;}
+.rp-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);margin-bottom:10px;}
+.rp-sub{font-size:15px;color:var(--muted);}
+
+.soil-banner{background:linear-gradient(135deg,var(--forest),var(--moss));border-radius:20px;padding:28px 32px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;}
+.sb-left h3{font-family:'Playfair Display',serif;font-size:22px;color:white;margin-bottom:4px;}
+.sb-left p{font-size:14px;color:rgba(255,255,255,.55);}
+.npk-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+.npk-badge{padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.1);}
+.npk-high{background:rgba(82,183,136,.25);color:var(--mint);}
+.npk-medium{background:rgba(201,146,10,.2);color:#f6d365;}
+.npk-low{background:rgba(220,38,38,.2);color:#fca5a5;}
+.sb-chart{display:flex;gap:8px;align-items:flex-end;}
+.sb-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.sb-bar-bg{width:32px;height:80px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden;display:flex;align-items:flex-end;}
+.sb-bar-fill{width:100%;border-radius:6px;transition:height .8s cubic-bezier(.34,1.56,.64,1);}
+.sb-bar-label{font-size:11px;color:rgba(255,255,255,.4);font-weight:600;}
+.sb-bar-val{font-size:11px;color:var(--mint);font-weight:700;}
+
+.rec-list{display:flex;flex-direction:column;gap:16px;}
+.rec-card{background:white;border-radius:20px;padding:28px;box-shadow:var(--card-shadow);border:1px solid var(--line);display:grid;grid-template-columns:56px 1fr auto;gap:20px;align-items:center;transition:all .3s;border-left:4px solid var(--sage);animation:slideIn .4s ease backwards;}
+.rec-card:hover{transform:translateY(-3px);box-shadow:var(--hover-shadow);}
+.rec-card.r1{border-left-color:var(--gold);}.rec-card.r2{border-left-color:var(--sage);}.rec-card.r3{border-left-color:var(--amber);}
+.rec-badge{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:24px;font-weight:700;flex-shrink:0;}
+.r1 .rec-badge{background:linear-gradient(135deg,#f6d365,#c9920a);color:white;}
+.r2 .rec-badge{background:linear-gradient(135deg,var(--mint),var(--sage));color:white;}
+.r3 .rec-badge{background:linear-gradient(135deg,#fda085,#f4a261);color:white;}
+.rec-crop-name{font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);margin-bottom:8px;}
+.rec-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.rec-tag{padding:4px 11px;font-size:11px;font-weight:600;border-radius:20px;background:#e8f5ee;color:var(--moss);border:1px solid #c8e6d4;}
+.rec-fert{font-size:12px;color:var(--muted);}
+.rec-right{text-align:right;flex-shrink:0;}
+.rec-price{font-family:'Playfair Display',serif;font-size:28px;color:var(--moss);font-weight:700;}
+.rec-price-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.rec-npk{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;}
+.npk-mini{padding:3px 9px;background:#f0f4f1;color:var(--moss);border-radius:8px;font-size:11px;font-weight:700;}
+.results-actions{display:flex;gap:12px;margin-top:20px;}
+.btn-action{flex:1;padding:13px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;}
+.ba-print{background:#f3f4f6;color:var(--ink);}.ba-print:hover{background:#e5e7eb;}
+.ba-export{background:#e8f5ee;color:var(--moss);}.ba-export:hover{background:#d1eedd;}
+.ba-pdf{background:#fef3c7;color:#c9920a;border:1px solid #fde68a;}
+.ba-pdf:hover{background:#fde68a;color:#b45309;}
+
+/* Chatbot Styles - ADD THESE */
+.chatbot-fab {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2d6a4f, #52b788);
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transition: transform 0.3s;
+}
+.chatbot-fab:hover {
+    transform: scale(1.1);
+}
+.chatbot-panel {
+    position: fixed;
+    bottom: 100px;
+    right: 30px;
+    width: 380px;
+    height: 550px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+    display: none;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+}
+.chatbot-panel.open {
+    display: flex;
+}
+.chat-header {
+    background: linear-gradient(135deg, #1a3a2a, #2d6a4f);
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+}
+.chat-header-avatar {
+    width: 40px;
+    height: 40px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+.chat-name {
+    font-weight: bold;
+    font-size: 16px;
+}
+.chat-status {
+    font-size: 11px;
+    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.chat-status-dot {
+    width: 8px;
+    height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+.chat-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+}
+.chat-msgs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.chat-msg {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+.chat-msg.user {
+    background: #2d6a4f;
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+.chat-msg.bot {
+    background: white;
+    color: #333;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.chat-typing {
+    display: flex;
+    gap: 4px;
+    padding: 10px 15px;
+    background: white;
+    border-radius: 18px;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
+.chat-typing span {
+    width: 8px;
+    height: 8px;
+    background: #999;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-10px); }
+}
+.chat-suggestions {
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-top: 1px solid #eee;
+    background: white;
+}
+.chat-sug {
+    padding: 5px 12px;
+    background: #e8f5e9;
+    color: #2d6a4f;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.chat-sug:hover {
+    background: #c8e6c9;
+}
+.chat-input-row {
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid #eee;
+    background: white;
+}
+.chat-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 25px;
+    outline: none;
+    font-size: 14px;
+}
+.chat-input:focus {
+    border-color: #2d6a4f;
+}
+.chat-send, .chat-voice {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #2d6a4f;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+.chat-send:hover, .chat-voice:hover {
+    background: #1a3a2a;
+}
+.chat-voice.recording {
+    background: #ef4444;
+    animation: pulse-red 1s infinite;
+}
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+}
+
+@media (max-width: 1024px) {
+    .dash-layout {grid-template-columns: 1fr;}
+    .dash-left, .dash-right {position: relative;top: 0;max-height: none;overflow-y: visible;}
+}
+@media(max-width:640px){
+    .dash-layout{padding:20px;}
+    .dash-topbar{padding:16px 20px;}
+    .rec-card{grid-template-columns:48px 1fr;}
+    .rec-right{display:none;}
+    .chatbot-panel { width: 90%; right: 5%; left: 5%; bottom: 80px; height: 500px; }
+}
+@media print{
+  #global-nav,.dash-topbar,.form-card,.mini-card,.market-card,.results-actions,.chatbot-fab,.chatbot-panel{display:none!important;}
+  body{padding-top:0!important;}
+  .dash-layout{grid-template-columns:1fr!important;padding:20px!important;}
+  .rec-card{break-inside:avoid;page-break-inside:avoid;}
+  .soil-banner{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<nav id="global-nav">
+  <a class="nav-logo" href="index.html">Crop<span>Sense</span></a>
+  <div class="nav-right" id="nav-right"></div>
+</nav>
+
+<div class="dash-topbar">
+  <div>
+    <div class="dash-greeting"><span data-i18n="good_day">Good day</span>, <span id="dash-uname">Farmer</span> 🌿</div>
+    <div class="dash-sub" data-i18n="dash_subtitle">Enter your farm conditions to get personalised crop recommendations</div>
+  </div>
+  <div class="dash-topbar-btns">
+    <a class="dqb dqb-hist" href="history.html"><span data-i18n="view_history">📜 View History</span></a>
+  </div>
+</div>
+
+<div class="dash-layout">
+  <!-- LEFT COLUMN - Scrollable -->
+  <div class="dash-left">
+    <div class="form-card">
+      <div class="form-card-title" data-i18n="dashboard_title">Soil & Climate Analysis</div>
+      <div class="form-card-sub" data-i18n="dashboard_subtitle">Fill in your farm conditions for an accurate recommendation</div>
+
+      <!-- NITROGEN (N) -->
+      <div class="ff">
+        <label data-i18n="label_nitrogen">🌱 Nitrogen (N) - mg/kg (20-200)</label>
+        <div class="range-row">
+          <input type="range" id="nitrogen-range" min="20" max="200" value="110" step="1" oninput="updateNitrogen(this.value)">
+          <span class="range-val" id="nitrogen-val">110</span>
+        </div>
+        <input type="number" id="nitrogen" value="110" min="20" max="200" step="1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updateNitrogenNum(this.value)">
+      </div>
+
+      <!-- PHOSPHORUS (P) -->
+      <div class="ff">
+        <label data-i18n="label_phosphorus">🌿 Phosphorus (P) - mg/kg (0-80)</label>
+        <div class="range-row">
+          <input type="range" id="phosphorus-range" min="0" max="80" value="42" step="1" oninput="updatePhosphorus(this.value)">
+          <span class="range-val" id="phosphorus-val">42</span>
+        </div>
+        <input type="number" id="phosphorus" value="42" min="0" max="80" step="1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updatePhosphorusNum(this.value)">
+      </div>
+
+      <!-- POTASSIUM (K) -->
+      <div class="ff">
+        <label data-i18n="label_potassium">🍂 Potassium (K) - mg/kg (0-200)</label>
+        <div class="range-row">
+          <input type="range" id="potassium-range" min="0" max="200" value="50" step="1" oninput="updatePotassium(this.value)">
+          <span class="range-val" id="potassium-val">50</span>
+        </div>
+        <input type="number" id="potassium" value="50" min="0" max="200" step="1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updatePotassiumNum(this.value)">
+      </div>
+
+      <!-- pH VALUE -->
+      <div class="ff">
+        <label data-i18n="label_ph">🧪 pH Value (3.0-8.5)</label>
+        <div class="range-row">
+          <input type="range" id="ph-range" min="3.0" max="8.5" value="6.5" step="0.1" oninput="updatePh(this.value)">
+          <span class="range-val" id="ph-val">6.5</span>
+        </div>
+        <input type="number" id="ph" value="6.5" min="3.0" max="8.5" step="0.1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updatePhNum(this.value)">
+      </div>
+
+      <!-- SOIL TYPE -->
+      <div class="ff">
+        <label data-i18n="label_soil">🪴 Soil Type</label>
+        <select id="soil-select" onchange="updateSoilHint()">
+          <option value="Loamy">Loamy (Balanced)</option>
+          <option value="Clay">Clay (Water-retentive)</option>
+          <option value="Sandy">Sandy (Fast-draining)</option>
+          <option value="Sandy loam">Sandy Loam (Well-draining)</option>
+          <option value="Black cotton">Black Cotton (Cotton soil)</option>
+          <option value="Acidic">Acidic</option>
+          <option value="Red">Red Soil</option>
+          <option value="Volcanic">Volcanic</option>
+          <option value="Well drained">Well Drained</option>
+        </select>
+        <div class="soil-hint" id="soil-hint"></div>
+      </div>
+
+      <!-- HUMIDITY -->
+      <div class="ff">
+        <label data-i18n="label_humidity">💧 Humidity (%) (40-85)</label>
+        <div class="range-row">
+          <input type="range" id="humidity-range" min="40" max="85" value="70" step="1" oninput="updateHumidity(this.value)">
+          <span class="range-val" id="humidity-val">70%</span>
+        </div>
+        <input type="number" id="humidity" value="70" min="40" max="85" step="1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updateHumidityNum(this.value)">
+      </div>
+
+      <!-- TEMPERATURE -->
+      <div class="ff">
+        <label data-i18n="label_temperature">🌡 Temperature (°C) (5-50)</label>
+        <div class="range-row">
+          <input type="range" id="temp-range" min="5" max="50" value="25" step="1" oninput="updateTemp(this.value)">
+          <span class="range-val" id="temp-val">25°C</span>
+        </div>
+        <input type="number" id="temp-num" value="25" min="5" max="50" step="1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updateTempNum(this.value)">
+      </div>
+
+      <!-- RAINFALL -->
+      <div class="ff">
+        <label data-i18n="label_rainfall">🌧 Annual Rainfall (mm) (250-3000)</label>
+        <div class="range-row">
+          <input type="range" id="rain-range" min="250" max="3000" value="500" step="1" oninput="updateRain(this.value)">
+          <span class="range-val" id="rain-val">500mm</span>
+        </div>
+        <input type="number" id="rain-num" value="500" min="250" max="3000" step="1" style="margin-top:8px;width:100%;padding:9px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;" oninput="updateRainNum(this.value)">
+      </div>
+
+      <button class="btn-rec" id="rec-btn" onclick="getMLRecommendations()">
+        <div class="spinner"></div>
+        <span class="btn-text" data-i18n="btn_get_recommendations">🌱 Get Recommendations</span>
+      </button>
+    </div>
+
+    <!-- Season -->
+    <div class="mini-card">
+      <div class="mini-title" data-i18n="season_guide">Crop Seasonality Guide</div>
+      <div class="stabs">
+        <button class="stab active" id="stab-kharif" onclick="switchSeason('kharif')"><span data-i18n="season_kharif">☀️ Kharif</span></button>
+        <button class="stab" id="stab-rabi" onclick="switchSeason('rabi')"><span data-i18n="season_rabi">❄️ Rabi</span></button>
+        <button class="stab" id="stab-zaid" onclick="switchSeason('zaid')"><span data-i18n="season_zaid">🌤️ Zaid</span></button>
+      </div>
+      <div class="season-chips" id="season-chips"></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);" id="season-info"></div>
+    </div>
+
+    <!-- Market Prices -->
+    <div class="market-card">
+      <div class="market-title" data-i18n="market_prices">📈 Market Prices (₹/quintal)</div>
+      <div id="price-ticker"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN - Sticky -->
+  <div class="dash-right" id="dash-right">
+    <div class="results-placeholder">
+      <div class="rp-icon">🌾</div>
+      <div class="rp-title" data-i18n="ready_title">Ready for Analysis</div>
+      <div class="rp-sub" data-i18n="ready_sub">Select soil type, set temperature and rainfall, then click <strong>Get Recommendations</strong>.</div>
+    </div>
+  </div>
+</div>
+
+<div id="footer-mount"></div>
+
+<!-- Chatbot Floating Button -->
+<button class="chatbot-fab" id="chatbot-fab" onclick="toggleChatbot()">
+    💬
+</button>
+
+<!-- Chatbot Panel -->
+<div class="chatbot-panel" id="chatbot-panel">
+    <div class="chat-header">
+        <div class="chat-header-avatar">🌾</div>
+        <div class="chat-header-info">
+            <div class="chat-name">CropSense Assistant</div>
+            <div class="chat-status">
+                <div class="chat-status-dot"></div>
+                Online
+            </div>
+        </div>
+        <button class="chat-close" onclick="toggleChatbot()">✕</button>
+    </div>
+    
+    <div class="chat-msgs" id="chat-msgs">
+        <div class="chat-msg bot">
+            👋 Namaste! I'm your CropSense assistant. Ask me about crops, diseases, pests, fertilizers, irrigation, soil types, or market prices!
+        </div>
+    </div>
+    
+    <div class="chat-suggestions">
+        <span class="chat-sug" onclick="sendChatMessage('Price of rice')">💰 Rice price</span>
+        <span class="chat-sug" onclick="sendChatMessage('Rice diseases')">🌾 Rice diseases</span>
+        <span class="chat-sug" onclick="sendChatMessage('Clay soil crops')">🪴 Clay soil crops</span>
+        <span class="chat-sug" onclick="sendChatMessage('What is NPK?')">🧪 What is NPK?</span>
+        <span class="chat-sug" onclick="sendChatMessage('Help')">❓ Help</span>
+    </div>
+    
+    <div class="chat-input-row">
+        <input type="text" class="chat-input" id="chat-input" 
+               placeholder="Ask me about farming..." 
+               onkeypress="if(event.key==='Enter') sendChatMessage()">
+        <button class="chat-voice" id="chat-voice-btn" onclick="startVoiceInput()" title="Voice input">🎤</button>
+        <button class="chat-send" onclick="sendChatMessage()">➤</button>
+    </div>
+</div>
+
+<script src="data.js?v=3"></script>
+<script src="chatbot.js?v=3"></script>
+
+<script>
+// ============================================
+// GLOBAL FUNCTIONS
+// ============================================
+
+// Chatbot wrappers (delegate to chatbot.js)
+function toggleChatbot() { toggleChat(); }
+function sendChatMessage(message) {
+    if (message) document.getElementById('chat-input').value = message;
+    sendMessage();
+}
+function startVoiceInput() { toggleVoice(); }
+
+// Update soil hint
+function updateSoilHint() {
+    const soil = document.getElementById('soil-select').value;
+    const infoMap = {
+        'Loamy': '💡 Loamy soil - Ideal for most crops. Good drainage and nutrient retention.',
+        'Clay': '💡 Clay soil - Heavy soil, good for rice and sugarcane. Needs organic matter.',
+        'Sandy': '💡 Sandy soil - Light soil, good for groundnut and watermelon. Add compost.',
+        'Sandy loam': '💡 Sandy loam - Well-draining, good for pulses and vegetables.',
+        'Black cotton': '💡 Black cotton soil - Ideal for cotton. Good water retention.',
+        'Acidic': '💡 Acidic soil - Add lime to raise pH. Good for tea and coffee.',
+        'Red': '💡 Red soil - Good for millets and groundnut. Add organic matter.',
+        'Volcanic': '💡 Volcanic soil - Very fertile. Good for coffee and avocados.',
+        'Well drained': '💡 Well drained soil - Good for herbs and vegetables.'
+    };
+    const hintDiv = document.getElementById('soil-hint');
+    if (hintDiv) hintDiv.textContent = infoMap[soil] || '💡 Select a soil type for more information.';
+}
+
+// Switch season
+function switchSeason(tab) {
+    const seasonTab = tab;
+    ['kharif','rabi','zaid'].forEach(t => {
+        const btn = document.getElementById('stab-'+t);
+        if (btn) btn.classList.toggle('active', t === tab);
+    });
+    renderSeasonChips(tab);
+}
+
+// Render season chips
+function renderSeasonChips(tab) {
+    const container = document.getElementById('season-chips');
+    if (!container) return;
+    
+    const seasonCrops = {
+        'kharif': ['🌾 Rice', '🌽 Maize', '🌸 Cotton', '🥜 Groundnut', '🫘 Soybean', '🌾 Millets', '🌿 Jute', '🟡 Turmeric'],
+        'rabi': ['🌿 Wheat', '🌼 Mustard', '🫘 Lentil', '🥔 Potato', '🧅 Onion', '🥕 Carrot', '🟢 Peas', '🌿 Coriander'],
+        'zaid': ['🍌 Banana', '🎋 Sugarcane', '🍵 Tea', '☕ Coffee', '🍉 Watermelon', '🥒 Cucumber', '🎃 Pumpkin', '🍆 Brinjal']
+    };
+    
+    const crops = seasonCrops[tab] || seasonCrops['kharif'];
+    container.innerHTML = crops.map(crop => 
+        `<span class="s-chip" onclick="sendChatMessage('Tell me about ${crop.replace(/[^\w\s]/g, '').trim()}')">${crop}</span>`
+    ).join('');
+    
+    const infoDiv = document.getElementById('season-info');
+    if (infoDiv) {
+        const infoMap = {
+            'kharif': 'Monsoon crops (June-Oct). Sown at start of monsoon, harvested in autumn.',
+            'rabi': 'Winter crops (Nov-Apr). Sown after monsoon, harvested in spring.',
+            'zaid': 'Summer crops (Apr-Jun). Grown between Rabi and Kharif seasons.'
+        };
+        infoDiv.textContent = infoMap[tab] || '';
+    }
+}
+
+// Render price ticker
+function renderPriceTicker() {
+    const container = document.getElementById('price-ticker');
+    if (!container) return;
+    
+    const priceData = [
+        { name: 'Rice', price: 4024, icon: '🌾' },
+        { name: 'Wheat', price: 2164, icon: '🌿' },
+        { name: 'Maize', price: 1700, icon: '🌽' },
+        { name: 'Coffee', price: 20200, icon: '☕' },
+        { name: 'Tea', price: 27000, icon: '🍵' },
+        { name: 'Cotton', price: 7767, icon: '🌸' }
+    ];
+    
+    container.innerHTML = priceData.map(crop => 
+        `<div class="ticker-row">
+            <span class="ticker-crop">${crop.icon} ${crop.name}</span>
+            <span class="ticker-price">₹${crop.price.toLocaleString('en-IN')}</span>
+        </div>`
+    ).join('');
+}
+
+// Range slider functions
+function updateNitrogen(val) { val = Math.min(200, Math.max(20, parseFloat(val))); document.getElementById('nitrogen').value = val; document.getElementById('nitrogen-val').textContent = val; }
+function updateNitrogenNum(val) { val = Math.min(200, Math.max(20, parseFloat(val))); document.getElementById('nitrogen-range').value = val; document.getElementById('nitrogen-val').textContent = val; document.getElementById('nitrogen').value = val; }
+function updatePhosphorus(val) { val = Math.min(80, Math.max(0, parseFloat(val))); document.getElementById('phosphorus').value = val; document.getElementById('phosphorus-val').textContent = val; }
+function updatePhosphorusNum(val) { val = Math.min(80, Math.max(0, parseFloat(val))); document.getElementById('phosphorus-range').value = val; document.getElementById('phosphorus-val').textContent = val; document.getElementById('phosphorus').value = val; }
+function updatePotassium(val) { val = Math.min(200, Math.max(0, parseFloat(val))); document.getElementById('potassium').value = val; document.getElementById('potassium-val').textContent = val; }
+function updatePotassiumNum(val) { val = Math.min(200, Math.max(0, parseFloat(val))); document.getElementById('potassium-range').value = val; document.getElementById('potassium-val').textContent = val; document.getElementById('potassium').value = val; }
+function updatePh(val) { val = Math.min(8.5, Math.max(3.0, parseFloat(val))).toFixed(1); document.getElementById('ph').value = val; document.getElementById('ph-val').textContent = val; }
+function updatePhNum(val) { val = Math.min(8.5, Math.max(3.0, parseFloat(val))).toFixed(1); document.getElementById('ph-range').value = val; document.getElementById('ph-val').textContent = val; document.getElementById('ph').value = val; }
+function updateHumidity(val) { val = Math.min(85, Math.max(40, parseFloat(val))); document.getElementById('humidity').value = val; document.getElementById('humidity-val').textContent = val + '%'; }
+function updateHumidityNum(val) { val = Math.min(85, Math.max(40, parseFloat(val))); document.getElementById('humidity-range').value = val; document.getElementById('humidity-val').textContent = val + '%'; document.getElementById('humidity').value = val; }
+function updateTemp(val) { val = Math.min(50, Math.max(5, parseFloat(val))); document.getElementById('temp-num').value = val; document.getElementById('temp-val').textContent = val + '°C'; }
+function updateTempNum(val) { val = Math.min(50, Math.max(5, parseFloat(val))); document.getElementById('temp-range').value = val; document.getElementById('temp-val').textContent = val + '°C'; document.getElementById('temp-num').value = val; }
+function updateRain(val) { val = Math.min(3000, Math.max(250, parseFloat(val))); document.getElementById('rain-num').value = val; document.getElementById('rain-val').textContent = val + 'mm'; }
+function updateRainNum(val) { val = Math.min(3000, Math.max(250, parseFloat(val))); document.getElementById('rain-range').value = val; document.getElementById('rain-val').textContent = val + 'mm'; document.getElementById('rain-num').value = val; }
+
+// Render results
+function renderResults(recommendations, inputData) {
+    const rankClass = ['r1', 'r2', 'r3'];
+    const rankBadge = ['🥇', '🥈', '🥉'];
+    
+    const cardsHtml = recommendations.map((r, i) => `
+        <div class="rec-card ${rankClass[i]}" style="animation-delay:${i * 0.1}s">
+            <div class="rec-badge">${rankBadge[i]}</div>
+            <div>
+                <div class="rec-crop-name">${r.icon} ${r.name}</div>
+                <div class="rec-tags">
+                    <span class="rec-tag">📅 ${r.season}</span>
+                    <span class="rec-tag">🌡 ${r.min_temp}–${r.max_temp}°C</span>
+                    <span class="rec-tag">🌧 ${r.min_rain}–${r.max_rain}mm</span>
+                    <span class="rec-tag">📊 ${r.confidence}% match</span>
+                </div>
+                <div class="rec-fert">💊 ${r.fert}</div>
+            </div>
+            <div class="rec-right">
+                <div class="rec-price">₹${r.price.toLocaleString('en-IN')}</div>
+                <div class="rec-price-label">per quintal</div>
+            </div>
+        </div>
+    `).join('');
+    
+    document.getElementById('dash-right').innerHTML = `
+        <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--forest);margin-bottom:16px;">
+            🏆 Top ${recommendations.length} Recommendations
+        </div>
+        <div class="soil-banner">
+            <div>
+                <h3 style="color:white;margin-bottom:8px;">📊 Your Soil Analysis</h3>
+                <div style="display:flex;gap:15px;flex-wrap:wrap;">
+                    <span style="color:var(--mint);">N: ${inputData.N}</span>
+                    <span style="color:var(--mint);">P: ${inputData.P}</span>
+                    <span style="color:var(--mint);">K: ${inputData.K}</span>
+                    <span style="color:var(--mint);">pH: ${inputData.ph}</span>
+                    <span style="color:var(--mint);">Temp: ${inputData.temperature}°C</span>
+                    <span style="color:var(--mint);">Humidity: ${inputData.humidity}%</span>
+                    <span style="color:var(--mint);">Rain: ${inputData.rainfall}mm</span>
+                </div>
+            </div>
+        </div>
+        <div class="rec-list">${cardsHtml}</div>
+    `;
+}
+
+// Auth check
+function requireAuth() {
+    if (!SS.user) { window.location.href = 'auth.html'; return false; }
+    return true;
+}
+
+// Initialize page
+if (requireAuth()) {
+    document.getElementById('nav-right').innerHTML = buildUserNav();
+    document.getElementById('dash-uname').textContent = SS.user;
+    document.getElementById('footer-mount').innerHTML = footerHTML();
+    updateSoilHint();
+    renderSeasonChips('kharif');
+    renderPriceTicker();
+}
+
+// Make functions global
+window.sendChatMessage = sendChatMessage;
+window.toggleChatbot = toggleChatbot;
+window.startVoiceInput = startVoiceInput;
+window.getMLRecommendations = getMLRecommendations;
+
+
+</script>
+</body>
+</html>

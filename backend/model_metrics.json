@@ -1,0 +1,19 @@
+{
+  "accuracy": 97.5,
+  "precision": 0.9757,
+  "recall": 0.9751,
+  "f1_score": 0.9751,
+  "training_samples": 172800,
+  "testing_samples": 43200,
+  "total_crops": 72,
+  "features_used": [
+    "N",
+    "P",
+    "K",
+    "temperature",
+    "humidity",
+    "ph",
+    "rainfall"
+  ],
+  "algorithm": "Random Forest Classifier"
+}

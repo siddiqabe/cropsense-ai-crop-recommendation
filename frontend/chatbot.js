@@ -9,6 +9,19 @@
 
 // Get current language from localStorage
 let currentChatLanguage = localStorage.getItem('cropsense_lang') || 'en';
+let chatbotTranslations = {};
+
+// Load chatbot language data from JSON file
+async function loadChatbotLanguage(lang) {
+    try {
+        const resp = await fetch(`/languages/chatbot/${lang}.json`);
+        if (resp.ok) {
+            chatbotTranslations = await resp.json();
+        }
+    } catch (e) {
+        console.warn('Chatbot translations not available for:', lang);
+    }
+}
 
 const CROP_DATABASE = {
     // CEREALS & GRAINS
@@ -235,6 +248,9 @@ function generateResponse(intent) {
 
 // GREETING RESPONSE
 function getGreetingResponse() {
+    if (chatbotTranslations.greeting) {
+        return chatbotTranslations.greeting;
+    }
     const lang = currentChatLanguage;
     const greetings = {
         'en': '👋 **Namaste! I\'m CropSense Assistant.** 🌾\n\nI can help you with:\n\n🌾 **Crops:** "Rice details", "Wheat info"\n💰 **Prices:** "Price of wheat", "Rice rate"\n🪴 **Soil:** "Soil for rice", "Wheat soil type"\n🧪 **NPK:** "NPK for banana", "Fertilizer for wheat"\n\n💡 **Type "help" to see everything I can do!**',
@@ -245,6 +261,9 @@ function getGreetingResponse() {
 
 // HELP RESPONSE
 function getHelpResponse() {
+    if (chatbotTranslations.help) {
+        return chatbotTranslations.help;
+    }
     const lang = currentChatLanguage;
     const helpTexts = {
         'en': '🌾 **CropSense Assistant - Help Guide**\n\n**💰 PRICE QUERIES**\n• "Price of rice" - Get market price\n• "Wheat rate" - Current wheat price\n\n**🌾 CROP DETAILS**\n• "Rice details" - Complete crop information\n• "Wheat growing guide" - Cultivation info\n\n**🪴 SOIL REQUIREMENTS**\n• "Soil for rice" - Best soil for rice\n• "Wheat soil type" - Soil requirements\n\n**🧪 FERTILIZER**\n• "NPK for rice" - Fertilizer recommendation\n• "Fertilizer for wheat" - NPK requirements\n\n💡 Just type your question naturally!',
@@ -255,6 +274,9 @@ function getHelpResponse() {
 
 // DEFAULT RESPONSE
 function getDefaultResponse() {
+    if (chatbotTranslations.not_sure) {
+        return chatbotTranslations.not_sure;
+    }
     const lang = currentChatLanguage;
     const defaultTexts = {
         'en': '🌾 I\'m not sure about that.\n\n💡 **Try asking:**\n• "Price of rice" - Get market price\n• "Rice details" - Crop information\n• "Soil for wheat" - Soil requirements\n• "NPK for maize" - Fertilizer advice\n• "What can you do?" - See all features\n\nType "help" to see everything I can do! 🌾',
@@ -321,16 +343,32 @@ async function sendMessage() {
     // Show typing indicator
     showTypingIndicator();
     
-    // Process and respond after delay
-    setTimeout(() => {
+    // Try backend first, fall back to local
+    try {
+        const lang = currentChatLanguage || 'en';
+        const resp = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, language: lang })
+        });
+        const data = await resp.json();
         removeTypingIndicator();
-        
-        // Detect intent and generate response
+        if (data.success && data.response) {
+            addMessage(data.response, 'bot');
+        } else {
+            // Fall back to local
+            const intent = detectIntent(message);
+            const response = generateResponse(intent);
+            addMessage(response, 'bot');
+        }
+    } catch (err) {
+        console.warn('Backend chat unavailable, using local:', err);
+        removeTypingIndicator();
+        // Fall back to local processing
         const intent = detectIntent(message);
         const response = generateResponse(intent);
-        
         addMessage(response, 'bot');
-    }, 500);
+    }
 }
 
 // TOGGLE CHAT PANEL
@@ -354,7 +392,8 @@ function toggleVoice() {
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = currentChatLanguage === 'hi' ? 'hi-IN' : 'en-IN';
+    const voiceLangMap = { 'hi': 'hi-IN', 'kn': 'kn-IN', 'mr': 'mr-IN', 'ta': 'ta-IN', 'te': 'te-IN' };
+    recognition.lang = voiceLangMap[currentChatLanguage] || 'en-IN';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
@@ -400,11 +439,14 @@ window.updateChatbotLanguage = function() {
     currentChatLanguage = localStorage.getItem('cropsense_lang') || 'en';
     console.log('✅ Chatbot language updated to:', currentChatLanguage);
     
-    // Update welcome message
-    const welcomeMsg = document.querySelector('.chat-msg.bot:first-child');
-    if (welcomeMsg) {
-        welcomeMsg.textContent = getGreetingResponse().replace(/\*\*/g, '');
-    }
+    // Load translations for this language
+    loadChatbotLanguage(currentChatLanguage).then(() => {
+        // Update welcome message after translations loaded
+        const welcomeMsg = document.querySelector('.chat-msg.bot:first-child');
+        if (welcomeMsg) {
+            welcomeMsg.textContent = getGreetingResponse().replace(/\*\*/g, '');
+        }
+    });
 };
 
 // INITIALIZE CHATBOT
@@ -445,6 +487,13 @@ function initChatbot() {
         closeBtn.onclick = toggleChat;
     }
     
+    // Update welcome message with translated greeting (async)
+    loadChatbotLanguage(currentChatLanguage).then(() => {
+        const welcomeMsg = document.querySelector('.chat-msg.bot:first-child');
+        if (welcomeMsg) {
+            welcomeMsg.textContent = getGreetingResponse().replace(/\*\*/g, '');
+        }
+    });
     console.log("✅ Chatbot initialized successfully!");
 }
 

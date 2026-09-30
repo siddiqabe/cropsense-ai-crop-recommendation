@@ -34,7 +34,10 @@ if not VENV_DIR.exists():
 python_exe = VENV_DIR / "Scripts" / "python.exe" if os.name == 'nt' else VENV_DIR / "bin" / "python"
 pip_exe = VENV_DIR / "Scripts" / "pip.exe" if os.name == 'nt' else VENV_DIR / "bin" / "pip"
 
-run_command([str(pip_exe), "install", "--upgrade", "pip"], check=True)
+try:
+    run_command([str(pip_exe), "install", "--upgrade", "pip"], check=False)
+except:
+    pass
 
 # 3. Install requirements
 print_step("Installing dependencies...")
@@ -52,7 +55,7 @@ else:
 env_path = BASE_DIR / ".env"
 if not env_path.exists():
     print_step("Creating .env from example...")
-    (BASE_DIR / ".env.example").write_text(env_path.read_text())
+    env_path.write_text((BASE_DIR / ".env.example").read_text(encoding='utf-8'), encoding='utf-8')
     print("ℹ️  Edit backend/.env with your Gmail credentials for contact form.")
 
 print_step("🚀 Starting Flask dev server on http://localhost:5000")

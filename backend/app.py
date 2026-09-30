@@ -6,16 +6,27 @@ from models import db, User, SoilType, Crop, CropDetails, History, Recommendatio
 import joblib
 import numpy as np
 import os
+import json
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import subprocess
 from datetime import datetime
 import bcrypt
+import uuid
+from crop_knowledge import get_crop_diseases_info, get_crop_pests_info, get_crop_varieties_info, get_crop_growing_info, get_crop_npk_info
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app, supports_credentials=True)
 
 load_dotenv()
+
+# Load native crop name translations (used to fix mistranslated crop names like fig → ಚಿತ್ರ)
+CROP_NATIVE_NAMES = {}
+for lang_code in ['kn', 'hi', 'mr', 'ta', 'te']:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f'{lang_code}_crop_names.json')
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as f:
+            CROP_NATIVE_NAMES[lang_code] = json.load(f)
 
 # ============================================
 # DATABASE CONFIGURATION
@@ -32,7 +43,7 @@ migrate = Migrate(app, db)
 # Create tables (run once)
 with app.app_context():
     db.create_all()
-    print("✅ Database tables created")
+    print("[OK] Database tables created")
 
 # ============================================
 # EMAIL CONFIGURATION
@@ -47,7 +58,7 @@ app.config['MAIL_RECIPIENTS'] = os.getenv('MAIL_RECIPIENTS', 'support@cropsense.
 
 if not app.config['MAIL_USERNAME'] or app.config['MAIL_USERNAME'] == 'your-email@gmail.com':
     app.config['TESTING'] = True
-    print("ℹ️ Email disabled (no .env creds). Set MAIL_USERNAME/PASSWORD for contact form.")
+    print("[INFO] Email disabled (no .env creds). Set MAIL_USERNAME/PASSWORD for contact form.")
 
 mail = Mail(app)
 
@@ -61,29 +72,22 @@ def get_model():
     if model is None:
         model_path = 'crop_model.pkl'
         joblib_path = 'crop_model.joblib'
-        
-        if os.path.exists(joblib_path):
-            try:
-                model = joblib.load(joblib_path)
-                print("✅ Model loaded from joblib")
-                return model
-            except:
-                pass
-        
+
         if not os.path.exists(model_path):
-            print("🔄 Auto-training model...")
+            print("[TRAIN] Auto-training model...")
             subprocess.check_call(['python', 'model.py'])
-        
+
         try:
             model = joblib.load(model_path)
-            print("✅ Model loaded successfully")
+            print("[OK] Model loaded successfully")
+            # Cache as joblib for faster next load
             try:
                 joblib.dump(model, joblib_path)
-                print("💾 Saved as joblib format")
+                print("[SAVE] Saved as joblib format")
             except:
                 pass
         except Exception as e:
-            print(f"❌ Model load failed: {e}")
+            print(f"[ERR] Model load failed: {e}")
             model = None
     return model
 
@@ -129,6 +133,7 @@ CROP_INFO = {
     'mustard': {'icon': '🌼', 'season': 'Rabi', 'soil': 'Loamy', 'fert': 'Urea 60kg/ha, DAP 40kg/ha', 'price': 6076, 'min_temp': 10, 'max_temp': 25, 'min_rain': 300, 'max_rain': 600},
     'banana': {'icon': '🍌', 'season': 'Zaid', 'soil': 'Loamy', 'fert': 'Urea 200kg/ha, DAP 100kg/ha', 'price': 3639, 'min_temp': 25, 'max_temp': 35, 'min_rain': 1000, 'max_rain': 2500},
     'turmeric': {'icon': '🟡', 'season': 'Kharif', 'soil': 'Loamy', 'fert': 'Urea 80kg/ha, DAP 50kg/ha', 'price': 10424, 'min_temp': 20, 'max_temp': 35, 'min_rain': 1500, 'max_rain': 2500},
+    'ginger': {'icon': '🫚', 'season': 'Kharif', 'soil': 'Loamy', 'fert': 'Urea 60kg/ha, DAP 40kg/ha', 'price': 8600, 'min_temp': 22, 'max_temp': 30, 'min_rain': 800, 'max_rain': 1500},
     'sunflower': {'icon': '🌻', 'season': 'Rabi', 'soil': 'Clay/Sandy', 'fert': 'Urea 60kg/ha, DAP 40kg/ha', 'price': 7500, 'min_temp': 20, 'max_temp': 35, 'min_rain': 400, 'max_rain': 800},
     'sesame': {'icon': '🌱', 'season': 'Kharif', 'soil': 'Sandy loam', 'fert': 'Urea 40kg/ha, DAP 40kg/ha', 'price': 9316, 'min_temp': 25, 'max_temp': 35, 'min_rain': 400, 'max_rain': 800},
     'apple': {'icon': '🍎', 'season': 'Rabi', 'soil': 'Loamy', 'fert': 'Urea 120kg/ha, DAP 80kg/ha', 'price': 12871, 'min_temp': 15, 'max_temp': 25, 'min_rain': 700, 'max_rain': 1200},
@@ -189,6 +194,16 @@ CROP_INFO = {
     'cocoa': {'icon': '🟤', 'season': 'Zaid', 'soil': 'Loamy', 'fert': 'Urea 80kg/ha, DAP 50kg/ha', 'price': 12000, 'min_temp': 19, 'max_temp': 30, 'min_rain': 1500, 'max_rain': 2500},
     'beans': {'icon': '🫘', 'season': 'Kharif', 'soil': 'Sandy loam', 'fert': 'Urea 25kg/ha, DAP 60kg/ha', 'price': 6951, 'min_temp': 21, 'max_temp': 29, 'min_rain': 400, 'max_rain': 800},
     'coconut': {'icon': '🥥', 'season': 'Zaid', 'soil': 'Sandy', 'fert': 'Urea 200kg/ha, DAP 100kg/ha', 'price': 6135, 'min_temp': 20, 'max_temp': 32, 'min_rain': 1300, 'max_rain': 2300},
+    'barley': {'icon': '🌾', 'season': 'Rabi', 'soil': 'Loamy', 'fert': 'Urea 80kg/ha, DAP 40kg/ha', 'price': 1950, 'min_temp': 10, 'max_temp': 25, 'min_rain': 300, 'max_rain': 800},
+    'castor': {'icon': '🌱', 'season': 'Kharif', 'soil': 'Sandy loam', 'fert': 'Urea 60kg/ha, DAP 30kg/ha', 'price': 6200, 'min_temp': 20, 'max_temp': 35, 'min_rain': 400, 'max_rain': 800},
+    'chickpea': {'icon': '🫘', 'season': 'Rabi', 'soil': 'Loamy', 'fert': 'Urea 20kg/ha, DAP 40kg/ha', 'price': 5200, 'min_temp': 18, 'max_temp': 30, 'min_rain': 400, 'max_rain': 800},
+    'mango': {'icon': '🥭', 'season': 'Zaid', 'soil': 'Loamy', 'fert': 'Urea 100kg/ha, DAP 50kg/ha', 'price': 35000, 'min_temp': 18, 'max_temp': 35, 'min_rain': 500, 'max_rain': 1000},
+    'orange': {'icon': '🍊', 'season': 'Zaid', 'soil': 'Loamy', 'fert': 'Urea 80kg/ha, DAP 40kg/ha', 'price': 7500, 'min_temp': 15, 'max_temp': 30, 'min_rain': 600, 'max_rain': 1200},
+    'pomegranate': {'icon': '🔴', 'season': 'Zaid', 'soil': 'Loamy', 'fert': 'Urea 60kg/ha, DAP 40kg/ha', 'price': 15000, 'min_temp': 20, 'max_temp': 35, 'min_rain': 400, 'max_rain': 800},
+    'yam': {'icon': '🍠', 'season': 'Kharif', 'soil': 'Loamy', 'fert': 'Urea 100kg/ha, DAP 50kg/ha', 'price': 3000, 'min_temp': 20, 'max_temp': 30, 'min_rain': 1000, 'max_rain': 1500},
+    'kidneybeans': {'icon': '🫘', 'season': 'Rabi', 'soil': 'Loamy', 'fert': 'Urea 30kg/ha, DAP 60kg/ha', 'price': 6951, 'min_temp': 18, 'max_temp': 25, 'min_rain': 400, 'max_rain': 800},
+    'mothbeans': {'icon': '🫘', 'season': 'Kharif', 'soil': 'Sandy loam', 'fert': 'Urea 25kg/ha, DAP 20kg/ha', 'price': 5500, 'min_temp': 25, 'max_temp': 35, 'min_rain': 300, 'max_rain': 600},
+    'mungbean': {'icon': '🟢', 'season': 'Kharif', 'soil': 'Sandy loam', 'fert': 'Urea 25kg/ha, DAP 20kg/ha', 'price': 6132, 'min_temp': 25, 'max_temp': 35, 'min_rain': 400, 'max_rain': 800},
 }
 
 # ============================================
@@ -290,7 +305,10 @@ def predict():
     
     try:
         data = request.json
-        print("📥 Received data:", data)
+        print("[IN] Received data:", data)
+        
+        # Whether to return all scored crops or just top 3
+        show_all = data.get('show_all', False)
         
         # Get user inputs
         # IMPORTANT: if user provides all-zero sensor values (or invalid placeholders), model still returns top-3.
@@ -308,24 +326,24 @@ def predict():
         user_ph = float(data['ph'])
         user_rainfall = float(data['rainfall'])
 
-        # Treat 0 as invalid for these fields (0 pH / 0 rainfall / 0 temp / etc. are placeholders in UI).
-        # If everything is 0 (or effectively 0), block recommendation.
-        # If user selects ALL-zero OR ANY subset includes 0, the UI/UX expectation is to block.
-        # Your requirement: if everything is zero OR 2+ parameters are zero -> show message.
+        # Treat 0 or slider-minimum values as invalid (placeholder indicators).
+        # Block when ALL parameters are at minimum (user hasn't entered real data).
         values = [
-            ('N', user_N),
-            ('P', user_P),
-            ('K', user_K),
-            ('pH', user_ph),
-            ('humidity', user_humidity),
-            ('temperature', user_temp),
-            ('rainfall', user_rainfall),
+            ('N', user_N, 20),
+            ('P', user_P, 0),
+            ('K', user_K, 0),
+            ('pH', user_ph, 3.0),
+            ('humidity', user_humidity, 40),
+            ('temperature', user_temp, 5),
+            ('rainfall', user_rainfall, 250),
         ]
-        zero_fields = [name for name, v in values if v == 0]
-        if len(zero_fields) >= 2:
-            # Provide a friendly message instead of recommendations
-            if len(zero_fields) == 7:
+        zero_fields = [name for name, v, _ in values if v == 0]
+        at_minimum = sum(1 for _, v, m in values if v <= m)
+        if len(zero_fields) >= 2 or at_minimum >= 6:
+            if len(zero_fields) == 7 or at_minimum == 7:
                 msg = 'Please select valid inputs for ALL parameters (N, P, K, pH, humidity, temperature, rainfall).'
+            elif at_minimum >= 6:
+                msg = 'Most values are at minimum. Please provide realistic soil and climate values for accurate recommendations.'
             else:
                 msg = f"Please select valid values. Detected 0 for: {', '.join(zero_fields)}"
             return jsonify({'success': False, 'error': msg}), 400
@@ -377,7 +395,7 @@ def predict():
             # Severe penalty for low-rainfall crops in high rainfall (>1500mm)
             if user_rainfall > 1500 and crop_max_rain < 1000:
                 rainfall_penalty = 50
-                print(f"⚠️ Heavy rain penalty for {crop}: needs only {crop_max_rain}mm")
+                print(f"[WARN] Heavy rain penalty for {crop}: needs only {crop_max_rain}mm")
             
             # Moderate penalty if rainfall exceeds crop's max
             elif user_rainfall > crop_max_rain:
@@ -427,33 +445,37 @@ def predict():
             })
         
         # ============================================
-        # STEP 5: SORT AND GET TOP 3 (GUARANTEED)
+        # STEP 5: SORT AND SELECT CROPS
         # ============================================
         
         # Sort by score (highest first)
         scored_crops.sort(key=lambda x: x['score'], reverse=True)
         
-        # ALWAYS take top 3 (if less than 3 exist, use what's available)
-        top_3 = scored_crops[:3]
+        # Filter out crops with zero score (irrelevant for extreme inputs)
+        valid_crops = [c for c in scored_crops if c['score'] > 0]
         
-        # If still less than 3, add fallback crops
+        # If show_all, return all scored crops; otherwise just top valid crops (max 3)
+        selected = scored_crops if show_all else valid_crops[:3]
+        
+        # In top-3 mode, ensure exactly 3 (use fallbacks if needed)
         fallback_crops = ['rice', 'wheat', 'maize']
-        while len(top_3) < 3:
-            fallback = fallback_crops[len(top_3)]
-            top_3.append({
-                'name': fallback,
-                'score': 50,
-                'prob': 0.5,
-                'crop_info': CROP_INFO.get(fallback, {})
-            })
-            print(f"⚠️ Added fallback crop: {fallback}")
+        if not show_all:
+            while len(selected) < 3:
+                fallback = fallback_crops[len(selected)]
+                selected.append({
+                    'name': fallback,
+                    'score': 50,
+                    'prob': 0.5,
+                    'crop_info': CROP_INFO.get(fallback, {})
+                })
+                print(f"[WARN] Added fallback crop: {fallback}")
         
         # ============================================
         # STEP 6: BUILD RESPONSE
         # ============================================
         
         recommendations = []
-        for i, crop_data in enumerate(top_3):
+        for i, crop_data in enumerate(selected):
             crop = crop_data['name']
             score = crop_data['score']
             crop_info = crop_data['crop_info']
@@ -477,6 +499,7 @@ def predict():
         # ============================================
         
         user_id = data.get('user_id')
+        top_3_recs = recommendations[:3]  # for database, always top 3
         if user_id:
             try:
                 new_history = History(
@@ -489,22 +512,24 @@ def predict():
                     K_value=int(data['K']),
                     ph_value=user_ph,
                     humidity=int(data['humidity']),
-                    top_crop_1=recommendations[0]['name'] if len(recommendations) > 0 else None,
-                    top_crop_2=recommendations[1]['name'] if len(recommendations) > 1 else None,
-                    top_crop_3=recommendations[2]['name'] if len(recommendations) > 2 else None
+                    top_crop_1=top_3_recs[0]['name'] if len(top_3_recs) > 0 else None,
+                    top_crop_2=top_3_recs[1]['name'] if len(top_3_recs) > 1 else None,
+                    top_crop_3=top_3_recs[2]['name'] if len(top_3_recs) > 2 else None
                 )
                 db.session.add(new_history)
                 db.session.commit()
-                print(f"✅ Saved to database - History ID: {new_history.history_id}")
+                print(f"[OK] Saved to database - History ID: {new_history.history_id}")
             except Exception as db_error:
-                print(f"⚠️ Database save error: {db_error}")
+                print(f"[WARN] Database save error: {db_error}")
         
-        print("✅ Recommendations generated:", [r['name'] for r in recommendations])
+        print(f"[OK] Recommendations generated: {len(recommendations)} crops (show_all={show_all})")
+        if not show_all:
+            print("[OK] Top:", [r['name'] for r in recommendations])
         
         return jsonify({'success': True, 'recommendations': recommendations})
         
     except Exception as e:
-        print("❌ Error:", str(e))
+        print("[ERR] Error:", str(e))
         return jsonify({'error': str(e)}), 500
 # ============================================
 # OTHER API ROUTES (Unchanged)
@@ -532,27 +557,30 @@ def contact():
         )
         
         if app.config.get('TESTING', False):
-            print(f"📧 Mock email: {name} <{email}> - {message[:100]}...")
+            print(f"[MAIL] Mock email: {name} <{email}> - {message[:100]}...")
             return jsonify({'success': True, 'message': 'Email queued (dev mode)'})
         mail.send(msg)
         
         return jsonify({'success': True, 'message': 'Email sent successfully!'})
         
     except Exception as e:
-        print("❌ Email error:", str(e))
+        print("[ERR] Email error:", str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/model-metrics', methods=['GET'])
 def model_metrics():
+    try:
+        metrics_path = os.path.join(basedir, 'model_metrics.json')
+        if os.path.exists(metrics_path):
+            with open(metrics_path, 'r') as f:
+                metrics = json.load(f)
+            return jsonify(metrics)
+    except:
+        pass
     return jsonify({
         'algorithm': 'Random Forest Classifier',
-        'accuracy': '92.5%',
-        'precision': '0.91',
-        'recall': '0.90',
-        'f1_score': '0.905',
-        'training_samples': 1760,
-        'testing_samples': 440,
+        'accuracy': 'N/A',
         'total_crops': len(CROP_INFO),
         'features_used': ['N', 'P', 'K', 'Temperature', 'Humidity', 'pH', 'Rainfall']
     })
@@ -709,7 +737,7 @@ def fertilizer_plan():
         return jsonify({'success': True, 'crop': crop, 'recommendations': recommendations})
 
     except Exception as e:
-        print(f"❌ Fertilizer plan error: {e}")
+        print(f"[ERR] Fertilizer plan error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -762,7 +790,7 @@ def crop_compatibility():
         return jsonify({'success': True, 'crop': crop, 'compatibility': compatibility})
 
     except Exception as e:
-        print(f"❌ Compatibility error: {e}")
+        print(f"[ERR] Compatibility error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -805,7 +833,7 @@ def alternative_crops():
         return jsonify({'success': True, 'alternatives': alternatives[:5]})
 
     except Exception as e:
-        print(f"❌ Alternatives error: {e}")
+        print(f"[ERR] Alternatives error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -826,7 +854,7 @@ def rotation_check():
         current_family = CROP_FAMILIES.get(current_crop, 'Other')
 
         if current_crop in previous_crops:
-            warnings.append(f"⚠️ {current_crop} was grown in previous season. Risk of pest/disease buildup.")
+            warnings.append(f"[WARN] {current_crop} was grown in previous season. Risk of pest/disease buildup.")
             recommendations.append(f"Consider a break crop like a legume before planting {current_crop} again.")
 
         for prev_crop in previous_crops:
@@ -834,14 +862,14 @@ def rotation_check():
                 continue
             prev_family = CROP_FAMILIES.get(prev_crop, 'Other')
             if prev_family == current_family and current_family in ['Cereal', 'Solanaceae']:
-                warnings.append(f"⚠️ {prev_crop} (same family as {current_crop}) was grown recently.")
+                warnings.append(f"[WARN] {prev_crop} (same family as {current_crop}) was grown recently.")
                 recommendations.append(f"Avoid planting crops from the {current_family} family consecutively.")
                 break
 
         if current_family == 'Cereal':
-            recommendations.append("✅ Good rotation: Cereal → Legume (fixes nitrogen) → Oilseed")
+            recommendations.append("[OK] Good rotation: Cereal → Legume (fixes nitrogen) → Oilseed")
         elif current_family == 'Legume':
-            recommendations.append("✅ Legumes are excellent rotation crops! Follow with cereals.")
+            recommendations.append("[OK] Legumes are excellent rotation crops! Follow with cereals.")
 
         return jsonify({
             'success': True,
@@ -851,7 +879,7 @@ def rotation_check():
         })
 
     except Exception as e:
-        print(f"❌ Rotation check error: {e}")
+        print(f"[ERR] Rotation check error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -884,6 +912,699 @@ def seed_database():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# CHATBOT KNOWLEDGE BASE & API
+# ============================================
+
+PROJECT_INFO = {
+    'en': {
+        'name': 'CropSense',
+        'tagline': 'AI-Powered Crop Recommendation System',
+        'description': 'CropSense is a web-based platform that helps farmers and agriculturalists make smart decisions about crop selection. It uses machine learning (Random Forest with 97.5% accuracy) to recommend the best crops based on your soil NPK values, pH, temperature, humidity, and rainfall.',
+        'features': [
+            'Smart Crop Recommendation - ML-powered predictions based on soil and climate conditions',
+            'Fertilizer Planning - Get customized fertilizer plans for your crops',
+            'Crop Compatibility Check - Check if a crop suits your conditions',
+            'Crop Rotation Planning - Plan crop rotation to maintain soil health',
+            'Alternative Crop Suggestions - Find alternative crops that match your conditions',
+            'Interactive Dashboard - Visualize your farm data and history',
+            'AI Chatbot Assistant - Get instant answers to all your farming questions',
+            'Multi-language Support - Available in English, Hindi, Marathi, Kannada, Tamil, Telugu',
+            'Email Contact Form - Get in touch with the team'
+        ],
+        'how_to_use': [
+            '1. Register an account or log in',
+            '2. Enter your soil NPK values (N, P, K), pH, temperature, humidity, and rainfall',
+            '3. Click "Get Recommendation" to see the top 3 crops for your conditions',
+            '4. Use the Fertilizer Plan tool to get detailed fertilizer advice',
+            '5. Check crop compatibility before planting',
+            '6. Track your prediction history on the dashboard'
+        ],
+        'tech': 'Built with Flask (Python), scikit-learn Random Forest, SQLite database, and JavaScript frontend'
+    },
+    'hi': {
+        'name': 'क्रॉपसेंस',
+        'tagline': 'एआई-संचालित फसल अनुशंसा प्रणाली',
+        'description': 'क्रॉपसेंस एक वेब-आधारित प्लेटफॉर्म है जो किसानों और कृषिविदों को फसल चयन के बारे में स्मार्ट निर्णय लेने में मदद करता है। यह आपकी मिट्टी के NPK मान, pH, तापमान, आर्द्रता और वर्षा के आधार पर सर्वोत्तम फसलों की सिफारिश करने के लिए मशीन लर्निंग (97.5% सटीकता के साथ रैंडम फॉरेस्ट) का उपयोग करता है।',
+        'features': [
+            'स्मार्ट फसल अनुशंसा - मिट्टी और जलवायु की स्थितियों पर आधारित ML-संचालित भविष्यवाणियां',
+            'उर्वरक योजना - अपनी फसलों के लिए अनुकूलित उर्वरक योजनाएं प्राप्त करें',
+            'फसल अनुकूलता जांच - जांचें कि कोई फसल आपकी स्थितियों के लिए उपयुक्त है या नहीं',
+            'फसल चक्र योजना - मिट्टी के स्वास्थ्य को बनाए रखने के लिए फसल चक्र की योजना बनाएं',
+            'वैकल्पिक फसल सुझाव - अपनी स्थितियों से मेल खाने वाली वैकल्पिक फसलें खोजें',
+            'इंटरएक्टिव डैशबोर्ड - अपने फार्म डेटा और इतिहास को विज़ुअलाइज़ करें',
+            'एआई चैटबॉट सहायक - अपने सभी कृषि प्रश्नों के तुरंत उत्तर प्राप्त करें',
+            'बहु-भाषा समर्थन - हिंदी, अंग्रेजी, मराठी, कन्नड़, तमिल, तेलुगु में उपलब्ध',
+            'ईमेल संपर्क फॉर्म - टीम से संपर्क करें'
+        ],
+        'how_to_use': [
+            '1. एक खाता पंजीकृत करें या लॉग इन करें',
+            '2. अपनी मिट्टी के NPK मान (N, P, K), pH, तापमान, आर्द्रता और वर्षा दर्ज करें',
+            '3. अपनी स्थितियों के लिए शीर्ष 3 फसलें देखने के लिए "अनुशंसा प्राप्त करें" पर क्लिक करें',
+            '4. विस्तृत उर्वरक सलाह प्राप्त करने के लिए उर्वरक योजना उपकरण का उपयोग करें',
+            '5. रोपण से पहले फसल अनुकूलता जांचें',
+            '6. डैशबोर्ड पर अपना पूर्वानुमान इतिहास देखें'
+        ],
+        'tech': 'फ्लास्क (पायथन), scikit-learn रैंडम फॉरेस्ट, SQLite डेटाबेस, और जावास्क्रिप्ट फ्रंटएंड के साथ निर्मित'
+    }
+}
+
+AGRICULTURE_KNOWLEDGE = {
+    'en': {
+        'npk': 'NPK stands for Nitrogen (N), Phosphorus (P), and Potassium (K) - the three primary nutrients plants need.\n\n🟢 **Nitrogen (N):** Promotes leafy growth and green color. Needed for photosynthesis. Deficiency causes yellowing of leaves.\n🔵 **Phosphorus (P):** Promotes root development, flowering, and fruit set. Essential for energy transfer in plants.\n🔴 **Potassium (K):** Improves overall plant health, disease resistance, and fruit quality. Regulates water uptake.\n\n💡 Soil testing is recommended before applying fertilizers.',
+        'ph': 'Soil pH measures how acidic or alkaline your soil is, on a scale of 0-14.\n\n• **pH 6.0-7.0 (Slightly acidic to neutral):** Ideal for most crops (rice, wheat, maize, vegetables)\n• **pH < 6.0 (Acidic):** Suitable for tea, coffee, potato, strawberry. Add lime to raise pH.\n• **pH > 7.5 (Alkaline):** Suitable for chickpea, mustard, barley. Add sulfur or organic matter to lower pH.\n\n💡 Most nutrients are optimally available to plants in the pH range of 6.0-7.5.',
+        'seasons': 'Indian agriculture has three main cropping seasons:\n\n🌧 **Kharif (Monsoon):** June-October. Sown with monsoon rains. Crops: Rice, Maize, Cotton, Groundnut, Soybean, Sugarcane, Millets, Turmeric, Okra\n❄️ **Rabi (Winter):** October-March. Sown after monsoon. Crops: Wheat, Barley, Mustard, Peas, Lentil, Chickpea, Potato, Onion, Cabbage, Cauliflower\n☀️ **Zaid (Summer):** March-June. Short summer season. Crops: Watermelon, Muskmelon, Cucumber, Pumpkin, Fruits, Vegetables',
+        'soil_types': 'Main soil types in India:\n\n🟫 **Alluvial Soil:** Found in river plains (Indus-Ganga). Best for wheat, rice, sugarcane. Most fertile.\n🟥 **Red Soil:** Found in Tamil Nadu, Karnataka. Good for groundnut, millets, potato.\n⬛ **Black Soil (Regur):** Found in Maharashtra, Gujarat. Best for cotton. Also good for wheat, sugarcane.\n🟨 **Laterite Soil:** Found in Kerala, Karnataka. Good for tea, coffee, rubber, coconut.\n🪨 **Desert Soil:** Found in Rajasthan. Suitable for drought-resistant crops like millets, barley.\n🏔 **Mountain Soil:** Found in Himalayan regions. Good for fruits like apple, pear, apricot.\n\n💡 **Loamy soil** is considered ideal for most crops due to balanced texture and nutrients.',
+        'irrigation': 'Irrigation methods:\n\n💧 **Drip Irrigation:** Water delivered directly to roots. Saves 30-50% water. Best for vegetables, fruits, cash crops.\n🌊 **Flood Irrigation:** Traditional method. Fields are flooded. Used for rice, sugarcane.\n💦 **Sprinkler Irrigation:** Water sprayed like rain. Good for wheat, gram, vegetables.\n🌧 **Rainfed Farming:** Relies on monsoon rainfall. Common for millets, pulses, cotton.\n\n💡 Drip irrigation is most efficient with 90% water use efficiency.',
+        'crop_rotation': 'Crop rotation is the practice of growing different crops in sequence on the same land.\n\n**Benefits:**\n• Improves soil fertility\n• Reduces pest and disease buildup\n• Controls weeds naturally\n• Better water utilization\n\n**Basic Rules:**\n• Follow legumes (add nitrogen) with cereals (need nitrogen)\n• Avoid planting same crop family repeatedly\n• Include deep-rooted and shallow-rooted crops alternately\n• Allow at least 2 years between same crop family',
+    },
+    'hi': {
+        'npk': 'NPK का अर्थ है नाइट्रोजन (N), फॉस्फोरस (P), और पोटैशियम (K) - पौधों को आवश्यक तीन प्राथमिक पोषक तत्व।\n\n🟢 **नाइट्रोजन (N):** पत्तियों की वृद्धि और हरे रंग को बढ़ावा देता है। प्रकाश संश्लेषण के लिए आवश्यक। कमी से पत्तियां पीली हो जाती हैं।\n🔵 **फॉस्फोरस (P):** जड़ विकास, फूल आने और फल लगने को बढ़ावा देता है। पौधों में ऊर्जा स्थानांतरण के लिए आवश्यक।\n🔴 **पोटैशियम (K):** समग्र पौध स्वास्थ्य, रोग प्रतिरोधक क्षमता और फल की गुणवत्ता में सुधार करता है।\n\n💡 उर्वरक लगाने से पहले मिट्टी परीक्षण की सिफारिश की जाती है।',
+        'ph': 'मिट्टी का pH 0-14 के पैमाने पर मापता है कि आपकी मिट्टी कितनी अम्लीय या क्षारीय है।\n\n• **pH 6.0-7.0 (थोड़ा अम्लीय से तटस्थ):** अधिकांश फसलों के लिए आदर्श\n• **pH < 6.0 (अम्लीय):** चाय, कॉफी, आलू, स्ट्रॉबेरी के लिए उपयुक्त। pH बढ़ाने के लिए चूना डालें।\n• **pH > 7.5 (क्षारीय):** चना, सरसों, जौ के लिए उपयुक्त। pH कम करने के लिए सल्फर या कार्बनिक पदार्थ डालें।',
+        'seasons': 'भारतीय कृषि में तीन मुख्य मौसम हैं:\n\n🌧 **खरीफ (मानसून):** जून-अक्टूबर। मानसून की बारिश के साथ बोआई। फसलें: चावल, मक्का, कपास, मूंगफली, सोयाबीन, गन्ना\n❄️ **रबी (सर्दी):** अक्टूबर-मार्च। मानसून के बाद बोआई। फसलें: गेहूं, जौ, सरसों, मटर, मसूर, चना, आलू\n☀️ **ज़ायद (गर्मी):** मार्च-जून। छोटा ग्रीष्मकालीन मौसम। फसलें: तरबूज, खरबूजा, खीरा, कद्दू',
+        'soil_types': 'भारत में मुख्य मिट्टी के प्रकार:\n\n🟫 **जलोढ़ मिट्टी:** नदी के मैदानों में पाई जाती है। गेहूं, चावल, गन्ना के लिए सर्वोत्तम।\n🟥 **लाल मिट्टी:** तमिलनाडु, कर्नाटक में पाई जाती है। मूंगफली, बाजरा, आलू के लिए अच्छी।\n⬛ **काली मिट्टी (रेगुर):** महाराष्ट्र, गुजरात में पाई जाती है। कपास के लिए सर्वोत्तम।\n🟨 **लैटेराइट मिट्टी:** केरल, कर्नाटक में पाई जाती है। चाय, कॉफी, रबर के लिए अच्छी।',
+        'crop_rotation': 'फसल चक्र एक ही भूमि पर क्रमिक रूप से विभिन्न फसलें उगाने की प्रथा है।\n\n**लाभ:**\n• मिट्टी की उर्वरता में सुधार करता है\n• कीट और रोग निर्माण को कम करता है\n• खरपतवारों को प्राकृतिक रूप से नियंत्रित करता है\n\n**बुनियादी नियम:**\n• दलहन (नाइट्रोजन जोड़ते हैं) के बाद अनाज (नाइट्रोजन चाहिए) लगाएं\n• एक ही फसल परिवार को बार-बार लगाने से बचें',
+    }
+}
+
+# Agriculture concept patterns for intent detection
+CONCEPT_PATTERNS = {
+    'npk': r'npk|nitrogen|phosphorus|potassium|नाइट्रोजन|फॉस्फोरस|पोटैशियम|n pk|एनपीके',
+    'ph': r'\bph\b|अम्लीय|क्षारीय|acidic|alkaline|acidity|alkalinity',
+    'seasons': r'kharif|rabi|zaid|season|monsoon|खरीफ|रबी|ज़ायद|मौसम',
+    'soil_types': r'soil type|types of soil|मिट्टी के प्रकार|soil classification',
+    'irrigation': r'irrigation|सिंचाई|drip|flood|sprinkler|rainfed',
+    'crop_rotation': r'crop rotation|rotation|फसल चक्र|चक्र',
+}
+
+# Project-related patterns
+PROJECT_PATTERNS = {
+    'what_is': r'what is cropsense|cropsense kya hai|cropsense क्या है|about cropsense|cropsense के बारे में',
+    'features': r'features|सुविधाएं|what can you do|आप क्या कर सकते हैं|capabilities',
+    'how_to_use': r'how to use|how does it work|का उपयोग कैसे करें|use cropsense|getting started',
+    'tech': r'technology|tech stack|built with|algorithm|model|किस तकनीक से बना है',
+    'accuracy': r'accuracy|सटीकता|how accurate|कितना सटीक',
+}
+
+# Additional crop-related patterns
+CROP_QUERY_PATTERNS = {
+    'price': r'price|rate|cost|market|₹|rs|दाम|रेट|कीमत|भाव|मूल्य|ಬೆಲೆ|ದರ|ధర|రేటు|விலை|किंमत|दर',
+    'soil': r'soil|मिट्टी|clay|loamy|sandy|alluvial|black soil|ಮಣ್ಣು|నేల|மண்|माती',
+    'fertilizer': r'npk|fertilizer|urea|dap|उर्वरक|एनपीके|ಯುರಿಯಾ|डीएपी|ఎరువు|உரம்|खत',
+    'season': r'season|kharif|rabi|zaid|when to grow|कब उगाएं|मौसम|ಋತು|కాలం|பருவம்|हंगाम',
+    'disease': r'disease|रोग|बीमारी|blight|rust|mildew|wilt|spot|ರೋಗ|వ్యాధి|நோய்|आजार',
+    'pest': r'pest|कीट|borer|aphid|moth|thrips|locust|ಕೀಟ|తెగులు|பூச்சி|कीड',
+    'variety': r'variet|किस्म|breed|cultivar|प्रजाति|ತಳಿ|రకం|இனம்|जात',
+    'growing': r'grow|growing|cultivation|खेती|उगाना|planting|बोआई|ಬೆಳೆ|సాగు|சாகுபடி|लागवड|पीक',
+}
+
+SUPPORTED_LANGS = {'en', 'hi', 'kn', 'mr', 'ta', 'te'}
+
+# Crop name dictionaries for Indian languages (fallback when Azure translation unavailable)
+KN_CROP_NAMES = {
+    'ಅಕ್ಕಿ': 'rice', 'ಭತ್ತ': 'rice', 'ಗೋಧಿ': 'wheat', 'ಮೆಕ್ಕೆಜೋಳ': 'maize',
+    'ರಾಗಿ': 'ragi', 'ಸಿರಿಧಾನ್ಯ': 'millets', 'ಆಲೂಗಡ್ಡೆ': 'potato',
+    'ಟೊಮೇಟೊ': 'tomato', 'ಟೊಮ್ಯಾಟೋ': 'tomato', 'ಈರುಳ್ಳಿ': 'onion',
+    'ಬದನೆಕಾಯಿ': 'brinjal', 'ಎಲೆಕೋಸು': 'cabbage', 'ಹೂಕೋಸು': 'cauliflower',
+    'ಕ್ಯಾರೆಟ್': 'carrot', 'ಮೂಲಂಗಿ': 'radish', 'ಪಾಲಕ್': 'spinach',
+    'ಬಟಾಣಿ': 'peas', 'ಭಿಂಡಿ': 'okra', 'ಸೌತೆಕಾಯಿ': 'cucumber',
+    'ಕುಂಬಳಕಾಯಿ': 'pumpkin', 'ಬಾಳೆ': 'banana', 'ಸೇಬು': 'apple',
+    'ಮಾವು': 'mango', 'ದ್ರಾಕ್ಷಿ': 'grapes', 'ಪೇರಲ': 'guava',
+    'ಪಪ್ಪಾಯಿ': 'papaya', 'ನಿಂಬೆ': 'lemon', 'ಕಿತ್ತಳೆ': 'orange',
+    'ದಾಳಿಂಬೆ': 'pomegranate', 'ತೆಂಗಿನಕಾಯಿ': 'coconut', 'ಕಲ್ಲಂಗಡಿ': 'watermelon',
+    'ಕರಬೂಜ': 'muskmelon', 'ಹತ್ತಿ': 'cotton', 'ಕಬ್ಬು': 'sugarcane',
+    'ಚಹಾ': 'tea', 'ಕಾಫಿ': 'coffee', 'ಕಡಲೆಕಾಯಿ': 'groundnut',
+    'ಸೋಯಾಬೀನ್': 'soybean', 'ಸಾಸಿವೆ': 'mustard', 'ಕಡಲೆ': 'chickpea',
+    'ಮಸೂರ್': 'lentil', 'ಅರಿಶಿನ': 'turmeric', 'ಶುಂಠಿ': 'ginger',
+    'ಬಾರ್ಲಿ': 'barley', 'ಸೆಣಬು': 'jute', 'ಎಳ್ಳು': 'sesame',
+    'ಸೂರ್ಯಕಾಂತಿ': 'sunflower', 'ಹರಳು': 'castor',
+    'ಹುರಳಿಕಾಯಿ': 'kidneybeans', 'ಅವರೆ': 'pigeonpeas', 'ಹೆಸರು': 'mungbean',
+    'ತೊಗರಿ': 'mothbeans', 'ಬೀನ್ಸ್': 'beans',
+}
+
+TE_CROP_NAMES = {
+    'వరి': 'rice', 'బియ్యం': 'rice', 'గోధుమ': 'wheat', 'మొక్కజొన్న': 'maize',
+    'రాగులు': 'ragi', 'చిరుధాన్యం': 'millets', 'బంగాళాదుంప': 'potato',
+    'టమోటా': 'tomato', 'ఉల్లిపాయ': 'onion', 'వంకాయ': 'brinjal',
+    'క్యాబేజీ': 'cabbage', 'కాలీఫ్లవర్': 'cauliflower', 'క్యారెట్': 'carrot',
+    'ముల్లంగి': 'radish', 'పాలకూర': 'spinach', 'బటానీ': 'peas',
+    'భిండి': 'okra', 'దోసకాయ': 'cucumber', 'గుమ్మడికాయ': 'pumpkin',
+    'అరటి': 'banana', 'ఆపిల్': 'apple', 'మామిడి': 'mango',
+    'ద్రాక్ష': 'grapes', 'జామ': 'guava', 'బొప్పాయి': 'papaya',
+    'నిమ్మకాయ': 'lemon', 'నారింజ': 'orange', 'దానిమ్మ': 'pomegranate',
+    'కొబ్బరి': 'coconut', 'పుచ్చకాయ': 'watermelon', 'ఖర్బూజ': 'muskmelon',
+    'పత్తి': 'cotton', 'చెరకు': 'sugarcane', 'టీ': 'tea', 'కాఫీ': 'coffee',
+    'వేరుశెనగ': 'groundnut', 'సోయా': 'soybean', 'ఆవాలు': 'mustard',
+    'సెనగలు': 'chickpea', 'మసూర్': 'lentil', 'పసుపు': 'turmeric',
+    'అల్లం': 'ginger', 'బార్లీ': 'barley', 'జనప': 'jute',
+    'నువ్వులు': 'sesame', 'సూర్యకాంతి': 'sunflower', 'ఆముదం': 'castor',
+}
+
+TA_CROP_NAMES = {
+    'அரிசி': 'rice', 'நெல்': 'rice', 'கோதுமை': 'wheat', 'மக்காச்சோளம்': 'maize',
+    'கேழ்வரகு': 'ragi', 'சிறுதானியம்': 'millets', 'உருளைக்கிழங்கு': 'potato',
+    'தக்காளி': 'tomato', 'வெங்காயம்': 'onion', 'கத்தரி': 'brinjal',
+    'கத்திரிக்காய்': 'brinjal', 'முட்டைகோஸ்': 'cabbage', 'காலிஃபிளவர்': 'cauliflower',
+    'காரட்': 'carrot', 'முள்ளங்கி': 'radish', 'கீரை': 'spinach',
+    'பட்டாணி': 'peas', 'வெண்டை': 'okra', 'வெள்ளரி': 'cucumber',
+    'பூசணி': 'pumpkin', 'வாழை': 'banana', 'ஆப்பிள்': 'apple',
+    'மாம்பழம்': 'mango', 'திராட்சை': 'grapes', 'ப்பாளி': 'guava',
+    'ப்பாளி': 'papaya', 'எலுமிச்சை': 'lemon', 'ஆரஞ்சு': 'orange',
+    'மாதுளை': 'pomegranate', 'தேங்காய்': 'coconut', 'தர்ப்பூசணி': 'watermelon',
+    'முலாம்பழம்': 'muskmelon', 'ப்பருத்தி': 'cotton', 'கரும்பு': 'sugarcane',
+    'தேயிலை': 'tea', 'காபி': 'coffee', 'வேர்க்கடலை': 'groundnut',
+    'சோயா': 'soybean', 'கடுகு': 'mustard', 'கொண்டைக்கடலை': 'chickpea',
+    'ப்பருப்பு': 'lentil', 'மஞ்சள்': 'turmeric', 'இஞ்சி': 'ginger',
+    'ப்பார்லி': 'barley', 'சணல்': 'jute', 'எள்': 'sesame',
+    'சூரியகாந்தி': 'sunflower', 'ஆமணக்கு': 'castor',
+}
+
+MR_CROP_NAMES = {
+    'तांदूळ': 'rice', 'तांदळा': 'rice', 'भात': 'rice', 'गहू': 'wheat',
+    'गव्हा': 'wheat', 'गव्हाचा': 'wheat', 'गव्हाला': 'wheat', 'मका': 'maize', 'मक्याचा': 'maize',
+    'नाचणी': 'ragi', 'बाजरी': 'millets', 'बटाटा': 'potato',
+    'टोमॅटो': 'tomato', 'कांदा': 'onion', 'वांगी': 'brinjal',
+    'कोबी': 'cabbage', 'फुलकोबी': 'cauliflower', 'गाजर': 'carrot',
+    'मुळा': 'radish', 'पालक': 'spinach', 'वाटाणे': 'peas',
+    'भेंडी': 'okra', 'काकडी': 'cucumber', 'भोपळा': 'pumpkin',
+    'केळी': 'banana', 'सफरचंद': 'apple', 'आंबा': 'mango',
+    'द्राक्षे': 'grapes', 'पेरू': 'guava', 'पपई': 'papaya',
+    'लिंबू': 'lemon', 'संत्रे': 'orange', 'डाळिंब': 'pomegranate',
+    'नारळ': 'coconut', 'कलिंगड': 'watermelon', 'खरबूज': 'muskmelon',
+    'कापूस': 'cotton', 'ऊस': 'sugarcane', 'चहा': 'tea', 'कॉफी': 'coffee',
+    'शेंगदाणा': 'groundnut', 'सोयाबीन': 'soybean', 'मोहरी': 'mustard',
+    'हरबरा': 'chickpea', 'चणा': 'chickpea', 'मसूर': 'lentil',
+    'हळद': 'turmeric', 'आले': 'ginger', 'जव': 'barley',
+    'ताग': 'jute', 'तीळ': 'sesame', 'सूर्यफूल': 'sunflower',
+    'एरंडी': 'castor',
+}
+
+# All non-Hindi language crop name maps
+LANG_CROP_MAP = {
+    'kn': KN_CROP_NAMES,
+    'te': TE_CROP_NAMES,
+    'ta': TA_CROP_NAMES,
+    'mr': MR_CROP_NAMES,
+}
+
+_TRANSLATE_CACHE = {}
+
+def _azure_translate(text, to_lang, from_lang=None):
+    """Translate text. Uses Azure Translator if TRANSLATOR_KEY is set, else falls back to Google Translate (free)."""
+    if not text:
+        return None
+    cache_key = f'{from_lang or "auto"}:{to_lang}:{text}'
+    cached = _TRANSLATE_CACHE.get(cache_key)
+    if cached:
+        return cached
+    translator_key = os.getenv('TRANSLATOR_KEY')
+    translator_region = os.getenv('TRANSLATOR_REGION', 'global')
+    # Try Azure if configured
+    if translator_key and translator_key != 'your-azure-translator-key':
+        import urllib.request, urllib.error
+        url = f'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to={to_lang}'
+        if from_lang:
+            url += f'&from={from_lang}'
+        body = json.dumps([{'Text': text}]).encode('utf-8')
+        req = urllib.request.Request(url, data=body, method='POST')
+        req.add_header('Ocp-Apim-Subscription-Key', translator_key)
+        req.add_header('Ocp-Apim-Subscription-Region', translator_region)
+        req.add_header('Content-Type', 'application/json')
+        try:
+            resp = urllib.request.urlopen(req, timeout=15)
+            results = json.loads(resp.read().decode('utf-8'))
+            result = results[0]['translations'][0]['text']
+            _TRANSLATE_CACHE[cache_key] = result
+            return result
+        except Exception as e:
+            print(f"[ERR] Azure translate failed: {e}")
+    # Fallback: use Google Translate (free, no API key required)
+    try:
+        from deep_translator import GoogleTranslator
+        source = from_lang if from_lang else 'auto'
+        result = GoogleTranslator(source=source, target=to_lang).translate(text)
+        if result:
+            _TRANSLATE_CACHE[cache_key] = result
+            return result
+    except Exception as e:
+        print(f"[ERR] Google translate fallback failed: {e}")
+    return None
+
+
+@app.after_request
+def translate_chat_response(response):
+    """After-request hook: translate /api/chat responses, preserving crop names."""
+    if request.path == '/api/chat' and response.status_code == 200 and response.content_type and 'application/json' in response.content_type:
+        try:
+            data = response.get_json()
+            if data and data.get('success') and data.get('response'):
+                req_data = request.get_json(silent=True) or {}
+                lang = req_data.get('language', 'en')
+                if lang != 'en' and lang in SUPPORTED_LANGS:
+                    text = data['response']
+                    # Replace crop names with placeholders so Google Translate doesn't mangle them (e.g., fig → ಚಿತ್ರ)
+                    placeholder_map = {}
+                    for crop_key in sorted(CROP_INFO.keys(), key=len, reverse=True):
+                        name = crop_key.title()
+                        if name in text:
+                            pid = f'__CRP_{len(placeholder_map)}__'
+                            native = CROP_NATIVE_NAMES.get(lang, {}).get(crop_key, name)
+                            placeholder_map[pid] = native
+                            text = text.replace(name, pid)
+                    trans = _azure_translate(text, lang)
+                    if trans:
+                        for pid, native_name in placeholder_map.items():
+                            trans = trans.replace(pid, native_name)
+                        data['response'] = trans
+                        response.set_data(json.dumps(data, ensure_ascii=False))
+        except Exception as e:
+            print(f"[ERR] after_request translate failed: {e}")
+    return response
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.json
+        message = data.get('message', '').strip()
+        lang = data.get('language', 'en')
+        if lang not in SUPPORTED_LANGS:
+            lang = 'en'
+
+        if not message:
+            return jsonify({'success': True, 'response': _chat_greeting(lang), 'intent': 'GREETING'})
+
+        # For non-English languages: translate user message to English for processing
+        # Uses 'auto' source so English input works even when page is in Kannada/etc.
+        if lang != 'en':
+            eng_msg = _azure_translate(message, 'en')
+            if eng_msg:
+                message = eng_msg
+
+        msg_lower = message.lower()
+        pi = PROJECT_INFO.get(lang if lang in PROJECT_INFO else 'en', {})
+        ak = AGRICULTURE_KNOWLEDGE.get(lang if lang in AGRICULTURE_KNOWLEDGE else 'en', {})
+
+        # 1. Check for project-related queries
+        import re as re_mod
+
+        for key, pattern in PROJECT_PATTERNS.items():
+            if re_mod.search(pattern, msg_lower):
+                if key == 'what_is':
+                    resp = f"**🌾 {pi['name']} - {pi['tagline']}**\n\n{pi['description']}\n\n**✨ Key Features:**\n" + "\n".join(f"• {f}" for f in pi['features'][:5])
+                    return jsonify({'success': True, 'response': resp, 'intent': 'PROJECT'})
+                elif key == 'features':
+                    resp = f"**✨ {pi['name']} Features**\n\n" + "\n".join(f"• {f}" for f in pi['features'])
+                    return jsonify({'success': True, 'response': resp, 'intent': 'PROJECT'})
+                elif key == 'how_to_use':
+                    resp = f"**📖 How to Use {pi['name']}**\n\n" + "\n".join(pi['how_to_use'])
+                    return jsonify({'success': True, 'response': resp, 'intent': 'PROJECT'})
+                elif key == 'tech':
+                    resp = f"**🔧 Technology**\n\n{pi['tech']}\n\n🌾 The ML model achieves **97.5% accuracy** using Random Forest classifier trained on 216,000 samples across 72 crops."
+                    return jsonify({'success': True, 'response': resp, 'intent': 'PROJECT'})
+                elif key == 'accuracy':
+                    import json as json_mod
+                    try:
+                        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model_metrics.json')) as f:
+                            m = json_mod.load(f)
+                        resp = f"**📊 Model Accuracy: {m.get('accuracy', '97.5')}%**\n\n🎯 Precision: {m.get('precision', '0.976')}\n📈 Recall: {m.get('recall', '0.975')}\n🔢 F1 Score: {m.get('f1_score', '0.975')}\n🌾 Crops: {m.get('total_crops', 72)}\n📚 Training Samples: {m.get('training_samples', '172,800')}\n🧠 Algorithm: {m.get('algorithm', 'Random Forest')}"
+                    except:
+                        resp = "**📊 Model Accuracy: 97.5%** (Random Forest, 72 crops, 216K samples)"
+                    return jsonify({'success': True, 'response': resp, 'intent': 'PROJECT'})
+
+        # 2. Extract crop name from message (English + Hindi)
+        HINDI_CROP_NAMES = {
+            'चावल': 'rice', 'धान': 'rice', 'गेहूं': 'wheat', 'गेहूँ': 'wheat',
+            'मक्का': 'maize', 'आलू': 'potato', 'टमाटर': 'tomato', 'प्याज': 'onion',
+            'कपास': 'cotton', 'गन्ना': 'sugarcane', 'चाय': 'tea', 'कॉफी': 'coffee',
+            'मूंगफली': 'groundnut', 'सोयाबीन': 'soybean', 'सरसों': 'mustard',
+            'केला': 'banana', 'आम': 'mango', 'सेब': 'apple', 'अंगूर': 'grapes',
+            'संतरा': 'orange', 'अनार': 'pomegranate', 'पपीता': 'papaya',
+            'नारियल': 'coconut', 'तरबूज': 'watermelon', 'खरबूज': 'muskmelon',
+            'चना': 'chickpea', 'मसूर': 'lentil', 'बैंगन': 'brinjal',
+            'पत्ता गोभी': 'cabbage', 'फूल गोभी': 'cauliflower', 'गाजर': 'carrot',
+            'मूली': 'radish', 'पालक': 'spinach', 'मटर': 'peas',
+            'भिंडी': 'okra', 'खीरा': 'cucumber', 'कद्दू': 'pumpkin',
+            'हल्दी': 'turmeric', 'अदरक': 'ginger', 'जौ': 'barley',
+            'जूट': 'jute', 'तिल': 'sesame', 'सूरजमुखी': 'sunflower',
+            'अरंडी': 'castor', 'रागी': 'ragi',
+        }
+
+        crop_match = None
+        # Check Hindi names first
+        for hindi_name, eng_name in HINDI_CROP_NAMES.items():
+            if hindi_name in message:
+                crop_match = eng_name
+                break
+        # Check other Indian language names (fallback when Azure translation unavailable)
+        if not crop_match and lang in LANG_CROP_MAP:
+            for native_name, eng_name in LANG_CROP_MAP[lang].items():
+                if native_name in message:
+                    crop_match = eng_name
+                    break
+        # Check English names
+        if not crop_match:
+            all_crops = sorted(CROP_INFO.keys(), key=len, reverse=True)
+            msg_nospace = msg_lower.replace(' ', '')
+            for c in all_crops:
+                if c in msg_lower or c in msg_nospace:
+                    crop_match = c
+                    break
+
+        # Check aliases for common misspellings
+        if not crop_match:
+            CROP_ALIASES = {
+                'bitter guard': 'bittergourd', 'bitter gourd': 'bittergourd',
+                'bottle guard': 'bottlegourd', 'bottle gourd': 'bottlegourd',
+                'cauli flower': 'cauliflower', 'sweet potato': 'sweetpotato',
+                'ground nut': 'groundnut', 'horse gram': 'horsegram',
+                'pigeon pea': 'pigeonpea', 'pigeonpeas': 'pigeonpea',
+                'kidney beans': 'kidneybeans', 'moth beans': 'mothbeans',
+                'mung bean': 'mungbean', 'mung beans': 'mungbean',
+                'black gram': 'blackgram', 'green gram': 'greengram',
+                'chickoo': 'sapota', 'aloe vera': 'aloe_vera',
+                'cabbage': 'cabbage', 'brinjal': 'brinjal',
+                'fenugreek': 'fenugreek',
+            }
+            for alias, actual in CROP_ALIASES.items():
+                if alias in msg_lower:
+                    crop_match = actual
+                    break
+
+        # 3. Handle crop-specific queries (BEFORE general concepts)
+        if crop_match:
+            info = CROP_INFO.get(crop_match, {})
+
+            # Price query
+            if re_mod.search(CROP_QUERY_PATTERNS['price'], msg_lower):
+                price = info.get('price', 0)
+                resp = f"💰 **{crop_match.title()} - Market Price**\n\n📊 Current Price: **₹{price:,}/quintal**\n📅 Season: {info.get('season', 'N/A')}\n💡 Prices vary by region and demand."
+                return jsonify({'success': True, 'response': resp, 'intent': 'PRICE'})
+
+            # Soil query
+            if re_mod.search(CROP_QUERY_PATTERNS['soil'], msg_lower):
+                resp = f"🪴 **Soil Requirements for {crop_match.title()}**\n\n[OK] Suitable Soil: {info.get('soil', 'Loamy')}\n🌡 Temp: {info.get('min_temp', 'N/A')}-{info.get('max_temp', 'N/A')}°C\n🌧 Rainfall: {info.get('min_rain', 'N/A')}-{info.get('max_rain', 'N/A')}mm"
+                return jsonify({'success': True, 'response': resp, 'intent': 'SOIL'})
+
+            # Fertilizer/NPK query
+            if re_mod.search(CROP_QUERY_PATTERNS['fertilizer'], msg_lower):
+                resp = f"🧪 **Fertilizer for {crop_match.title()}**\n\n📊 Recommended: {info.get('fert', 'Standard fertilizer')}\n💡 Apply based on soil test results for best yields."
+                return jsonify({'success': True, 'response': resp, 'intent': 'FERTILIZER'})
+
+            # Season query
+            if re_mod.search(CROP_QUERY_PATTERNS['season'], msg_lower):
+                resp = f"📅 **{crop_match.title()} Growing Season**\n\n🌾 Season: {info.get('season', 'General')}\n🌡 Temperature: {info.get('min_temp', 'N/A')}-{info.get('max_temp', 'N/A')}°C\n🌧 Rainfall: {info.get('min_rain', 'N/A')}-{info.get('max_rain', 'N/A')}mm"
+                return jsonify({'success': True, 'response': resp, 'intent': 'SEASON'})
+
+            # Disease query
+            if re_mod.search(CROP_QUERY_PATTERNS['disease'], msg_lower):
+                detailed = get_crop_diseases_info(crop_match, info)
+                if detailed:
+                    return jsonify({'success': True, 'response': detailed, 'intent': 'DISEASE'})
+
+            # Pest query
+            if re_mod.search(CROP_QUERY_PATTERNS['pest'], msg_lower):
+                detailed = get_crop_pests_info(crop_match, info)
+                if detailed:
+                    return jsonify({'success': True, 'response': detailed, 'intent': 'PEST'})
+
+            # Variety query
+            if re_mod.search(CROP_QUERY_PATTERNS['variety'], msg_lower):
+                detailed = get_crop_varieties_info(crop_match, info)
+                if detailed:
+                    return jsonify({'success': True, 'response': detailed, 'intent': 'VARIETY'})
+
+            # Growing period query
+            if re_mod.search(CROP_QUERY_PATTERNS['growing'], msg_lower):
+                detailed = get_crop_growing_info(crop_match, info)
+                if detailed:
+                    return jsonify({'success': True, 'response': detailed, 'intent': 'GROWING'})
+
+            # NPK range query (within crop context)
+            if re_mod.search(r'npk|nitrogen|phosphorus|potassium|एनपीके|ಎನ್ಪಿಕೆ|పొటాష్|సారజనక|मातीचे पोषक', msg_lower):
+                detailed = get_crop_npk_info(crop_match, info)
+                if detailed:
+                    return jsonify({'success': True, 'response': detailed, 'intent': 'NPK_RANGE'})
+
+            # General crop info (default for crop mentions)
+            soil_info = info.get('soil', 'Loamy')
+            season = info.get('season', 'General')
+            fert = info.get('fert', 'Standard')
+            price = info.get('price', 0)
+            resp = (
+                f"{info.get('icon', '🌾')} **{crop_match.title()} - Complete Guide**\n\n"
+                f"📅 **Season:** {season}\n"
+                f"🌡 **Temperature:** {info.get('min_temp', 'N/A')}-{info.get('max_temp', 'N/A')}°C\n"
+                f"🌧 **Rainfall:** {info.get('min_rain', 'N/A')}-{info.get('max_rain', 'N/A')}mm\n"
+                f"🪴 **Soil:** {soil_info}\n"
+                f"💰 **Price:** ₹{price:,}/quintal\n"
+                f"🧪 **Fertilizer:** {fert}\n\n"
+                f"💡 Ask me about price, soil, NPK, season, or diseases for {crop_match.title()}!"
+            )
+            return jsonify({'success': True, 'response': resp, 'intent': 'CROP_INFO'})
+
+        # 4. Crops by season (before concept patterns for priority)
+        if re_mod.search(r'(what|which|कौन|क्या).*(grow|crop|plant|उगाएं|बोएं|फसल).*(kharif|rabi|zaid|खरीफ|रबी|ज़ायद)|(kharif|rabi|zaid|खरीफ|रबी|ज़ायद).*crop|^crops (for|of) (kharif|rabi|zaid|खरीफ|रबी|ज़ायद)|(kharif|rabi|zaid|खरीफ|रबी|ज़ायद).*(क्या|कौन).*(उगाएं|बोएं|फसल)', msg_lower):
+            season_map = {'kharif': [], 'rabi': [], 'zaid': []}
+            for c, inf in CROP_INFO.items():
+                s = (inf.get('season') or '').lower()
+                if 'kharif' in s:
+                    season_map['kharif'].append(c)
+                if 'rabi' in s:
+                    season_map['rabi'].append(c)
+                if 'zaid' in s:
+                    season_map['zaid'].append(c)
+            matched_season = None
+            for s in ['kharif', 'rabi', 'zaid']:
+                if s in msg_lower or (lang == 'hi' and {'kharif': 'खरीफ', 'rabi': 'रबी', 'zaid': 'ज़ायद'}[s] in message):
+                    matched_season = s
+                    break
+            if not matched_season:
+                for s_k, s_v in {'kharif': 'खरीफ', 'rabi': 'रबी', 'zaid': 'ज़ायद'}.items():
+                    if s_v in message:
+                        matched_season = s_k
+                        break
+            if matched_season:
+                crops_list = season_map[matched_season][:15]
+                season_name = matched_season.title()
+                resp = f"🌧 **{season_name} Season Crops**\n\n" + ", ".join(f"{CROP_INFO.get(c, {}).get('icon', '🌾')} {c.title()}" for c in crops_list)
+                return jsonify({'success': True, 'response': resp, 'intent': 'SEASON_CROPS'})
+
+        # 5. Crops by soil type (before concept patterns for priority)
+        if re_mod.search(r'(what|which|कौन|क्या).*(grow|crop|plant|उगाएं|बोएं).*(clay|loamy|sandy|alluvial|black|red|मिट्टी)|(clay|loamy|sandy|alluvial|black).*crop|^crops (for|in|of) (clay|loamy|sandy|alluvial|black)', msg_lower):
+            soil_query = None
+            for soil_type in ['clay', 'loamy', 'sandy', 'alluvial', 'black']:
+                if soil_type in msg_lower:
+                    soil_query = soil_type
+                    break
+            if soil_query:
+                matching = []
+                for c, inf in CROP_INFO.items():
+                    s = (inf.get('soil') or '').lower()
+                    if soil_query in s:
+                        matching.append(c)
+                if matching:
+                    resp = f"🪴 **Crops for {soil_query.title()} Soil**\n\n" + ", ".join(f"{CROP_INFO.get(c, {}).get('icon', '🌾')} {c.title()}" for c in matching[:15])
+                    return jsonify({'success': True, 'response': resp, 'intent': 'SOIL_CROPS'})
+
+        # 6. Check for agriculture concept queries
+        for key in CONCEPT_PATTERNS:
+            if re_mod.search(CONCEPT_PATTERNS[key], msg_lower):
+                if key == 'npk':
+                    return jsonify({'success': True, 'response': ak['npk'], 'intent': 'CONCEPT'})
+                elif key == 'ph':
+                    return jsonify({'success': True, 'response': ak['ph'], 'intent': 'CONCEPT'})
+                elif key == 'seasons':
+                    return jsonify({'success': True, 'response': ak['seasons'], 'intent': 'CONCEPT'})
+                elif key == 'soil_types':
+                    return jsonify({'success': True, 'response': ak['soil_types'], 'intent': 'CONCEPT'})
+                elif key == 'irrigation':
+                    return jsonify({'success': True, 'response': ak['irrigation'], 'intent': 'CONCEPT'})
+                elif key == 'crop_rotation':
+                    return jsonify({'success': True, 'response': ak['crop_rotation'], 'intent': 'CONCEPT'})
+
+        # 7. Greeting (Hindi Unicode fix: no \b for Hindi)
+        if re_mod.search(r'^(hi|hello|hey|namaste)\b', msg_lower) or \
+           any(g in message for g in ['नमस्ते', 'नमस्कार', 'हाय']):
+            return jsonify({'success': True, 'response': _chat_greeting(lang), 'intent': 'GREETING'})
+
+        # 8. Help
+        if re_mod.search(r'help|what can you do|सहायता|क्या कर सकते हैं', msg_lower):
+            return jsonify({'success': True, 'response': _chat_help(lang), 'intent': 'HELP'})
+
+        # 9. Thank you
+        if re_mod.search(r'thanks|thank you|धन्यवाद|शुक्रिया', msg_lower):
+            thank_text = "आपका स्वागत है! 😊 खेती की शुभकामनाएं! 🌾" if lang == 'hi' else "You're welcome! 😊 Happy farming! 🌾"
+            return jsonify({'success': True, 'response': thank_text, 'intent': 'THANKS'})
+
+        # 10. Weather-related
+        if re_mod.search(r'weather|मौसम|temperature|तापमान|rainfall|वर्षा', msg_lower):
+            resp = "🌤 I can help with crop recommendations based on your local weather conditions.\n\n💡 Go to the dashboard, enter your temperature, humidity, and rainfall data, and click **Get Recommendation** for personalized crop suggestions!"
+            if lang == 'hi':
+                resp = "🌤 मैं आपकी स्थानीय मौसम की स्थितियों के आधार पर फसल अनुशंसाओं में मदद कर सकता हूं।\n\n💡 डैशबोर्ड पर जाएं, अपना तापमान, आर्द्रता और वर्षा डेटा दर्ज करें, और व्यक्तिगत फसल सुझावों के लिए **अनुशंसा प्राप्त करें** पर क्लिक करें!"
+            return jsonify({'success': True, 'response': resp, 'intent': 'WEATHER'})
+
+        # 11. Disease/pest name lookup (standalone queries like "blast", "what is blight")
+        from crop_knowledge import CROP_DETAILED as _CD
+        disease_hits = {}
+        pest_hits = {}
+        for cname, cdata in _CD.items():
+            for d in cdata.get('diseases', []):
+                if d.lower() in msg_lower:
+                    disease_hits.setdefault(d, []).append(cname)
+            for p in cdata.get('pests', []):
+                if p.lower() in msg_lower:
+                    pest_hits.setdefault(p, []).append(cname)
+        if disease_hits or pest_hits:
+            lines = []
+            if disease_hits:
+                for d, crops in sorted(disease_hits.items()):
+                    lines.append(f"🦠 **{d}** affects: {', '.join(c.title() for c in crops)}")
+            if pest_hits:
+                for p, crops in sorted(pest_hits.items()):
+                    lines.append(f"🐛 **{p}** affects: {', '.join(c.title() for c in crops)}")
+            resp = "🌾 **Disease & Pest Information**\n\n" + "\n\n".join(lines) + "\n\n💡 Ask 'rice diseases' for detailed management tips!"
+            return jsonify({'success': True, 'response': resp, 'intent': 'DISEASE_PEST'})
+
+        # 12. Default: unknown query
+        resp = _chat_default(lang)
+        return jsonify({'success': True, 'response': resp, 'intent': 'UNKNOWN'})
+
+    except Exception as e:
+        print(f"Chat error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _chat_greeting(lang):
+    if lang == 'hi':
+        return (
+            "🌾 **नमस्ते! मैं CropSense सहायक हूं** 🌾\n\n"
+            "मैं आपकी मदद कर सकता हूं:\n\n"
+            "🌱 **फसलें:** \"चावल की जानकारी\", \"गेहूं के बारे में बताएं\"\n"
+            "💰 **कीमतें:** \"चावल का दाम\", \"गेहूं का रेट\"\n"
+            "🪴 **मिट्टी:** \"चावल के लिए मिट्टी\", \"गेहूं के लिए कौन सी मिट्टी\"\n"
+            "🧪 **उर्वरक:** \"चावल के लिए NPK\", \"गेहूं के लिए खाद\"\n"
+            "📅 **मौसम:** \"खरीफ में क्या उगाएं\", \"रबी फसलें\"\n"
+            "[INFO] **प्रोजेक्ट:** \"CropSense क्या है\", \"इसका उपयोग कैसे करें\"\n\n"
+            "💡 \"सहायता\" टाइप करें पूरी गाइड के लिए!"
+        )
+    return (
+        "🌾 **Namaste! I'm CropSense Assistant** 🌾\n\n"
+        "I can help you with:\n\n"
+        "🌱 **Crops:** \"Tell me about rice\", \"Wheat information\"\n"
+        "💰 **Prices:** \"Price of rice\", \"Wheat rate\"\n"
+        "🪴 **Soil:** \"Soil for rice\", \"What soil for wheat\"\n"
+        "🧪 **Fertilizer:** \"NPK for rice\", \"Fertilizer for wheat\"\n"
+        "📅 **Seasons:** \"What to grow in Kharif\", \"Rabi crops\"\n"
+        "🌍 **Agriculture:** \"What is NPK\", \"Soil types\", \"Crop rotation\"\n"
+        "[INFO] **Project:** \"What is CropSense\", \"How to use\"\n\n"
+        "💡 Type \"help\" for the full guide!"
+    )
+
+
+def _chat_help(lang):
+    if lang == 'hi':
+        return (
+            "🌾 **CropSense सहायक - पूरी गाइड**\n\n"
+            "**🌱 फसल जानकारी**\n"
+            "• \"चावल की जानकारी\" - पूरी फसल जानकारी\n"
+            "• \"गेहूं के बारे में बताएं\" - खेती गाइड\n\n"
+            "**💰 कीमत पूछताछ**\n"
+            "• \"चावल का दाम\" - बाजार मूल्य\n"
+            "• \"गेहूं का रेट क्या है\" - मौजूदा दाम\n\n"
+            "**🪴 मिट्टी और उर्वरक**\n"
+            "• \"चावल के लिए मिट्टी\" - मिट्टी की आवश्यकता\n"
+            "• \"गेहूं के लिए NPK\" - खाद की जानकारी\n\n"
+            "**📅 मौसम और फसलें**\n"
+            "• \"खरीफ में क्या उगाएं\" - मौसमी फसलें\n"
+            "• \"रबी फसलों की सूची\" - रबी फसलें\n\n"
+            "**🌍 कृषि ज्ञान**\n"
+            "• \"NPK क्या है\" - पोषक तत्व\n"
+            "• \"मिट्टी के प्रकार\" - मिट्टी वर्गीकरण\n"
+            "• \"फसल चक्र\" - फसल चक्र के लाभ\n\n"
+            "**[INFO] प्रोजेक्ट**\n"
+            "• \"CropSense क्या है\" - प्रोजेक्ट जानकारी\n"
+            "• \"सुविधाएं\" - सभी सुविधाएं\n"
+            "• \"सटीकता\" - मॉडल सटीकता"
+        )
+    return (
+        "🌾 **CropSense Assistant - Full Guide**\n\n"
+        "**🌱 CROP INFORMATION**\n"
+        "• \"Tell me about rice\" - Complete crop guide\n"
+        "• \"Wheat information\" - Cultivation details\n\n"
+        "**💰 PRICE QUERIES**\n"
+        "• \"Price of rice\" - Market price\n"
+        "• \"What is the rate of wheat\" - Current price\n\n"
+        "**🪴 SOIL & FERTILIZER**\n"
+        "• \"Soil for rice\" - Soil requirements\n"
+        "• \"NPK for wheat\" - Fertilizer info\n\n"
+        "**📅 SEASONS & CROPS**\n"
+        "• \"What to grow in Kharif\" - Seasonal crops\n"
+        "• \"Rabi crops list\" - Winter crops\n\n"
+        "**🌍 AGRICULTURE KNOWLEDGE**\n"
+        "• \"What is NPK\" - Plant nutrients\n"
+        "• \"Soil types\" - Soil classification\n"
+        "• \"Crop rotation\" - Rotation benefits\n"
+        "• \"Irrigation methods\" - Water management\n\n"
+        "**[INFO] PROJECT INFO**\n"
+        "• \"What is CropSense\" - Project overview\n"
+        "• \"Features\" - All features\n"
+        "• \"How to use\" - Getting started\n"
+        "• \"Accuracy\" - Model performance"
+    )
+
+
+def _chat_default(lang):
+    if lang == 'hi':
+        return (
+            "🌾 मुझे इसके बारे में पूरी जानकारी नहीं है।\n\n"
+            "💡 **कुछ इस तरह पूछें:**\n"
+            "• \"चावल की जानकारी\" - फसल विवरण\n"
+            "• \"NPK क्या है\" - कृषि ज्ञान\n"
+            "• \"CropSense क्या है\" - प्रोजेक्ट जानकारी\n"
+            "• \"खरीफ में क्या उगाएं\" - मौसमी फसलें\n\n"
+            "पूरी गाइड के लिए \"सहायता\" टाइप करें! 🌾"
+        )
+    return (
+        "🌾 I'm not sure about that.\n\n"
+        "💡 **Try asking:**\n"
+        "• \"Tell me about rice\" - Crop details\n"
+        "• \"What is NPK\" - Agriculture knowledge\n"
+        "• \"What is CropSense\" - Project info\n"
+        "• \"What to grow in Kharif\" - Seasonal crops\n"
+        "• \"Price of wheat\" - Market rates\n\n"
+        'Type "help" for the full guide! 🌾'
+    )
+
+
+# ============================================
+# TRANSLATION API (Microsoft Translator)
+# ============================================
+
+@app.route('/api/translate', methods=['POST'])
+def translate():
+    try:
+        data = request.json
+        texts = data.get('texts', [])
+        to_lang = data.get('to', 'hi')
+        from_lang = data.get('from', 'en')
+
+        if not texts:
+            return jsonify({'error': 'No texts provided'}), 400
+
+        translated = []
+        for t in texts:
+            result = _azure_translate(t, to_lang, from_lang)
+            if result is None:
+                return jsonify({'error': 'Translation failed. Check network or try again.'}), 502
+            translated.append(result)
+        return jsonify({'translations': translated})
+
+    except Exception as e:
+        print(f"[ERR] Translation failed: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

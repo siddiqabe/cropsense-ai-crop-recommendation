@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CropSense — Smart Farming Intelligence</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+<style>
+body{background:var(--forest);}
+/* ── HERO ── */
+.hero{position:relative;overflow:hidden;min-height:calc(100vh - 64px);display:flex;align-items:center;padding-top:64px;}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 70% at 65% 50%,rgba(45,106,79,.5) 0%,transparent 65%),radial-gradient(ellipse 35% 50% at 15% 70%,rgba(82,183,136,.12) 0%,transparent 55%),radial-gradient(ellipse 40% 40% at 85% 20%,rgba(201,146,10,.06) 0%,transparent 50%);}
+.hero-dots{position:absolute;inset:0;opacity:.035;background-image:radial-gradient(circle,var(--sage) 1.5px,transparent 1.5px);background-size:32px 32px;}
+.hero-inner{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:80px 48px;display:grid;grid-template-columns:1fr 500px;gap:64px;align-items:center;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 14px 5px 8px;border-radius:40px;margin-bottom:28px;background:rgba(82,183,136,.12);border:1px solid rgba(82,183,136,.25);}
+.eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:breathe 2.5s ease-in-out infinite;}
+.eyebrow-text{font-size:11px;font-weight:600;color:var(--mint);text-transform:uppercase;letter-spacing:1.2px;}
+.hero-h1{font-family:'Playfair Display',serif;font-size:68px;line-height:1.04;color:white;font-weight:900;margin-bottom:24px;}
+.hero-h1 .accent{color:var(--mint);}.hero-h1 .accent-gold{color:var(--gold);}
+.hero-p{font-size:18px;color:rgba(255,255,255,.6);line-height:1.75;max-width:500px;margin-bottom:40px;font-weight:300;}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:56px;}
+.hero-stats{display:flex;gap:0;}
+.hero-stat{padding:0 36px 0 0;border-right:1px solid rgba(255,255,255,.1);margin-right:36px;}
+.hero-stat:last-child{border:none;margin:0;padding:0;}
+.stat-n{font-family:'Playfair Display',serif;font-size:38px;color:var(--gold);font-weight:700;line-height:1;}
+.stat-l{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.hero-visual{display:flex;flex-direction:column;gap:14px;}
+.hv-card{background:rgba(255,255,255,.06);border:1px solid rgba(82,183,136,.18);border-radius:18px;padding:18px 22px;display:flex;align-items:center;gap:14px;backdrop-filter:blur(10px);animation:hv-float 5s ease-in-out infinite;transition:transform .3s;}
+.hv-card:hover{transform:translateX(6px)!important;}
+.hv-card:nth-child(2){margin-left:48px;animation-delay:1.7s;}
+.hv-card:nth-child(3){margin-left:24px;animation-delay:3.3s;}
+@keyframes hv-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.hv-icon{font-size:34px;flex-shrink:0;}
+.hv-name{font-weight:600;color:white;font-size:15px;}.hv-sub{font-size:12px;color:var(--mint);margin-top:2px;}
+.hv-price{margin-left:auto;text-align:right;flex-shrink:0;}
+.hv-price-n{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;}
+.hv-price-l{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){
+  .hero-inner{grid-template-columns:1fr;padding:60px 32px;}
+  .hero-visual{display:none;}
+}
+@media(max-width:640px){
+  .hero-h1{font-size:42px;}
+}
+</style>
+</head>
+<body>
+
+<nav id="global-nav">
+  <a class="nav-logo" href="index.html">Crop<span>Sense</span></a>
+  <div class="nav-center">
+    <a class="nav-link" href="about.html" data-i18n="nav_about">About</a>
+    <a class="nav-link" href="how-it-works.html" data-i18n="nav_how_it_works">How It Works</a>
+    <a class="nav-link" href="testimonials.html" data-i18n="nav_testimonials">Testimonials</a>
+    <a class="nav-link" href="contact.html" data-i18n="nav_contact">Contact</a>
+  </div>
+  <div class="nav-right" id="nav-right"></div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-dots"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">
+        <div class="eyebrow-dot"></div>
+        <span class="eyebrow-text" data-i18n="hero_eyebrow">Smart Farming Intelligence</span>
+      </div>
+      <h1 class="hero-h1">
+        <span data-i18n="hero_line1">Grow</span> <span class="accent" data-i18n="hero_line1_accent">Smarter</span>,<br>
+        <span data-i18n="hero_line2">Earn</span> <span class="accent-gold" data-i18n="hero_line2_accent">More</span>
+      </h1>
+      <p class="hero-p" data-i18n="hero_subtitle">Enter your soil type, temperature, and rainfall to get AI-powered crop recommendations with NPK analysis, fertilizer plans, and live market prices.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="auth.html?mode=register" data-i18n="hero_start">Start Farming Smart →</a>
+        <a class="btn-outline" href="auth.html?mode=login" data-i18n="nav_signin">Login</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="stat-n" data-i18n="stat_crops">70+</div><div class="stat-l" data-i18n="stat_crops_label">CROPS</div></div>
+        <div class="hero-stat"><div class="stat-n" data-i18n="stat_soils">7</div><div class="stat-l" data-i18n="stat_soils_label">SOIL TYPES</div></div>
+        <div class="hero-stat"><div class="stat-n" data-i18n="stat_seasons">3</div><div class="stat-l" data-i18n="stat_seasons_label">SEASONS</div></div>
+        <div class="hero-stat"><div class="stat-n" data-i18n="stat_free">100%</div><div class="stat-l" data-i18n="stat_free_label">FREE</div></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hv-card">
+        <div class="hv-icon">🌾</div>
+        <div>
+          <div class="hv-name">Wheat</div>
+          <div class="hv-sub">Rabi · Loamy · 10–25°C</div>
+        </div>
+        <div class="hv-price">
+          <div class="hv-price-n">₹2,275</div>
+          <div class="hv-price-l" data-i18n="per_quintal_short">/QUINTAL</div>
+        </div>
+      </div>
+      <div class="hv-card">
+        <div class="hv-icon">🌿</div>
+        <div>
+          <div class="hv-name">Rice</div>
+          <div class="hv-sub">Kharif · Clay · 20–35°C</div>
+        </div>
+        <div class="hv-price">
+          <div class="hv-price-n">₹2,100</div>
+          <div class="hv-price-l" data-i18n="per_quintal_short">/QUINTAL</div>
+        </div>
+      </div>
+      <div class="hv-card">
+        <div class="hv-icon">☕</div>
+        <div>
+          <div class="hv-name">Coffee</div>
+          <div class="hv-sub">Year-round · Laterite</div>
+        </div>
+        <div class="hv-price">
+          <div class="hv-price-n">₹42,000</div>
+          <div class="hv-price-l" data-i18n="per_quintal_short">/QUINTAL</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="footer-mount"></div>
+
+<script src="data.js?v=3"></script>
+<script src="chatbot.js?v=3"></script>
+<script>
+// Nav
+document.getElementById('nav-right').innerHTML = SS.user ? buildUserNav() : buildAuthNav();
+
+// Footer
+document.getElementById('footer-mount').innerHTML = footerHTML();
+</script>
+</body>
+</html>

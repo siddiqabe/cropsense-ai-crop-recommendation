@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — CropSense</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+body{background:var(--deep);padding-top:64px;}
+.page-hero{background:var(--deep);padding:80px 48px;text-align:center;position:relative;overflow:hidden;}
+.page-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 0%,rgba(82,183,136,.3) 0%,transparent 60%);}
+.page-hero-inner{position:relative;z-index:1;max-width:800px;margin:0 auto;}
+.page-hero h1{font-family:'Playfair Display',serif;font-size:52px;color:white;margin-bottom:16px;}
+.page-hero p{font-size:18px;color:rgba(255,255,255,.6);line-height:1.7;}
+.page-content{max-width:1100px;margin:0 auto;padding:60px 48px;}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;}
+.contact-info{color:white;}
+.contact-info .section-label{color:var(--mint);}
+.contact-info h2{font-family:'Playfair Display',serif;font-size:36px;margin-bottom:16px;}
+.contact-info > p{font-size:16px;color:rgba(255,255,255,.5);margin-bottom:32px;line-height:1.7;}
+.ci-list{display:flex;flex-direction:column;gap:24px;}
+.ci-item{display:flex;align-items:flex-start;gap:16px;}
+.ci-icon{width:52px;height:52px;background:rgba(82,183,136,.12);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.ci-label{font-size:12px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.ci-value{font-size:15px;color:rgba(255,255,255,.85);}
+.contact-form{background:rgba(255,255,255,.04);border:1px solid rgba(82,183,136,.15);border-radius:24px;padding:40px;}
+.cf-title{font-family:'Playfair Display',serif;font-size:24px;color:white;margin-bottom:8px;}
+.cf-sub{font-size:14px;color:rgba(255,255,255,.5);margin-bottom:28px;}
+.cf-field{margin-bottom:20px;}
+.cf-field label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.cf-field input,.cf-field textarea{width:100%;padding:14px 18px;background:rgba(255,255,255,.06);border:1.5px solid rgba(82,183,136,.15);border-radius:12px;color:white;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;resize:none;}
+.cf-field input:focus,.cf-field textarea:focus{border-color:var(--sage);background:rgba(255,255,255,.08);}
+.cf-field input::placeholder,.cf-field textarea::placeholder{color:rgba(255,255,255,.25);}
+.btn-contact{width:100%;padding:16px;background:var(--sage);color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.btn-contact:hover{background:var(--mint);color:var(--forest);}
+.cf-status{margin-top:16px;padding:12px 16px;border-radius:10px;font-size:14px;text-align:center;display:none;}
+.cf-status.success{background:rgba(82,183,136,.2);color:var(--mint);border:1px solid rgba(82,183,136,.3);display:block;}
+.cf-status.error{background:rgba(220,38,38,.15);color:#fca5a5;border:1px solid rgba(220,38,38,.3);display:block;}
+.map-section{background:var(--parchment);padding:60px 48px;text-align:center;}
+.map-inner{max-width:1240px;margin:0 auto;}
+.map-section h2{font-family:'Playfair Display',serif;font-size:32px;color:var(--forest);margin-bottom:16px;}
+.map-section p{font-size:15px;color:var(--muted);margin-bottom:32px;}
+.map-placeholder{background:linear-gradient(135deg,var(--moss),var(--forest));border-radius:24px;padding:80px 40px;text-align:center;}
+.map-placeholder span{font-size:48px;display:block;margin-bottom:16px;}
+.map-placeholder p{color:rgba(255,255,255,.6);font-size:16px;}
+@media(max-width:900px){.contact-grid{grid-template-columns:1fr;}}
+@media(max-width:640px){.page-hero{padding:60px 24px;}.page-hero h1{font-size:36px;}.page-content,.map-section{padding:40px 24px;}}
+</style>
+</head>
+<body>
+
+<nav id="global-nav">
+  <a class="nav-logo" href="index.html">Crop<span>Sense</span></a>
+  <div class="nav-center">
+    <a class="nav-link" href="about.html" data-i18n="nav_about">About</a>
+    <a class="nav-link" href="how-it-works.html" data-i18n="nav_how_it_works">How It Works</a>
+    <a class="nav-link" href="testimonials.html" data-i18n="nav_testimonials">Testimonials</a>
+    <a class="nav-link" href="contact.html" data-i18n="nav_contact">Contact</a>
+  </div>
+  <div class="nav-right" id="nav-right"></div>
+</nav>
+
+<!-- Hero Section -->
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <div class="section-label" style="color:var(--mint); display:inline-block; margin-bottom:16px;" data-i18n="nav_contact">Contact</div>
+    <h1 data-i18n="contact_title">Contact Us</h1>
+    <p data-i18n="contact_subtitle">Have questions or feedback? We'd love to hear from you. Our team is here to help.</p>
+  </div>
+</section>
+
+<!-- Contact Section -->
+<section class="page-content">
+  <div class="contact-grid">
+    <div class="contact-info">
+      <div class="section-label" data-i18n="lets_connect">Let's Connect</div>
+      <h2 data-i18n="contact_heading">We'd Love to Hear From You</h2>
+      <p data-i18n="contact_desc">Whether you have a question about features, trials, pricing, or anything else, our team is ready to answer all your questions.</p>
+      <div class="ci-list">
+        <div class="ci-item">
+          <div class="ci-icon">📧</div>
+          <div>
+            <div class="ci-label" data-i18n="contact_email_label">Email</div>
+            <div class="ci-value">shambhavigc550@gmail.com</div>
+          </div>
+        </div>
+        <div class="ci-item">
+          <div class="ci-icon">📞</div>
+          <div>
+            <div class="ci-label" data-i18n="contact_phone_label">Phone</div>
+            <div class="ci-value">1800-180-1551 (Kisan Helpline)</div>
+          </div>
+        </div>
+        <div class="ci-item">
+          <div class="ci-icon">📍</div>
+          <div>
+            <div class="ci-label" data-i18n="contact_office_label">Office</div>
+            <div class="ci-value">Karnataka, India</div>
+          </div>
+        </div>
+        <div class="ci-item">
+          <div class="ci-icon">🕐</div>
+          <div>
+            <div class="ci-label" data-i18n="contact_hours_label">Hours</div>
+            <div class="ci-value">Mon - Fri: 9:00 AM - 6:00 PM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="contact-form">
+      <div class="cf-title" data-i18n="contact_form_title">Send a Message</div>
+      <div class="cf-sub" data-i18n="contact_form_sub">Fill out the form below and we'll get back to you within 24 hours.</div>
+      <div class="cf-field">
+        <label data-i18n="contact_name_label">Your Name</label>
+        <input type="text" id="cf-name" placeholder="Ramesh Patil">
+      </div>
+      <div class="cf-field">
+        <label data-i18n="contact_email_label">Email</label>
+        <input type="email" id="cf-email" placeholder="ramesh@farm.in">
+      </div>
+      <div class="cf-field">
+        <label data-i18n="contact_message_label">Message</label>
+        <textarea rows="5" id="cf-msg" placeholder="Your message..."></textarea>
+      </div>
+      <button class="btn-contact" onclick="submitContact()"><span data-i18n="contact_send">Send Message</span></button>
+      <div id="cf-status" class="cf-status"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Map Section -->
+<section class="map-section">
+  <div class="map-inner">
+    <h2 data-i18n="visit_office">Visit Our Office</h2>
+    <p data-i18n="map_desc">Our team is based in Karnataka, serving farmers across India.</p>
+    <div class="map-placeholder">
+      <span>📍</span>
+      <p data-i18n="office_address">CropSense Headquarters<br>Karnataka, India</p>
+    </div>
+  </div>
+</section>
+
+<div id="footer-mount"></div>
+
+<script src="data.js?v=3"></script>
+<script src="chatbot.js?v=3"></script>
+<script>
+document.getElementById('nav-right').innerHTML = SS.user ? buildUserNav() : buildAuthNav();
+document.getElementById('footer-mount').innerHTML = footerHTML();
+
+async function submitContact() {
+  const name = document.getElementById('cf-name').value.trim();
+  const email = document.getElementById('cf-email').value.trim();
+  const message = document.getElementById('cf-msg').value.trim();
+  const status = document.getElementById('cf-status');
+  
+  // Validation
+  if (!name || !email || !message) {
+    status.className = 'cf-status error';
+    status.textContent = 'Please fill in all fields.';
+    status.style.display = 'block';
+    return;
+  }
+  
+  if (!email.includes('@') || !email.includes('.')) {
+    status.className = 'cf-status error';
+    status.textContent = 'Please enter a valid email address.';
+    status.style.display = 'block';
+    return;
+  }
+  
+  // Show sending status
+  status.className = 'cf-status';
+  status.textContent = '⏳ Sending message...';
+  status.style.display = 'block';
+  
+  try {
+    // Send to Formspree (replace YOUR_FORM_ID with your actual Formspree ID)
+    const response = await fetch('https://formspree.io/f/mvzwaeny', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        name: name,
+        email: email,
+        message: message
+      })
+    });
+    
+    if (response.ok) {
+      status.className = 'cf-status success';
+      status.textContent = '✅ Message sent! We\'ll reply within 24 hours.';
+      
+      // Clear form
+      document.getElementById('cf-name').value = '';
+      document.getElementById('cf-email').value = '';
+      document.getElementById('cf-msg').value = '';
+    } else {
+      throw new Error('Failed to send');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    status.className = 'cf-status error';
+    status.textContent = '❌ Failed to send message. Please try again.';
+  }
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    status.style.display = 'none';
+  }, 5000);
+}
+</script>
+</body>
+</html>

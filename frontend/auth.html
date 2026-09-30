@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — CropSense</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+body{background:var(--forest);min-height:100vh;display:flex;flex-direction:column;}
+.auth-page{flex:1;display:flex;align-items:center;justify-content:center;padding:88px 20px 60px;}
+.auth-split{width:100%;max-width:960px;display:grid;grid-template-columns:1fr 1fr;border-radius:28px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.5);}
+.auth-left{background:linear-gradient(160deg,var(--moss),var(--forest));padding:52px 48px;display:flex;flex-direction:column;justify-content:space-between;}
+.auth-left-brand{font-family:'Playfair Display',serif;font-size:26px;color:var(--mint);}
+.auth-left-brand span{color:var(--gold);}
+.auth-left-h2{font-family:'Playfair Display',serif;font-size:36px;color:white;line-height:1.2;margin-bottom:16px;margin-top:40px;}
+.auth-left-p{font-size:15px;color:rgba(255,255,255,.5);line-height:1.7;}
+.alf-list{margin-top:36px;display:flex;flex-direction:column;gap:14px;}
+.alf{display:flex;align-items:center;gap:12px;font-size:14px;color:rgba(255,255,255,.65);}
+.alf-icon{width:32px;height:32px;background:rgba(82,183,136,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.alc-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:32px;}
+.alc{background:rgba(255,255,255,.07);border:1px solid rgba(82,183,136,.15);padding:6px 12px;border-radius:20px;font-size:12px;color:rgba(255,255,255,.5);}
+.auth-right{background:white;padding:52px 48px;}
+.auth-tabs{display:flex;background:#f3f4f6;border-radius:12px;padding:4px;margin-bottom:36px;}
+.auth-tab{flex:1;padding:10px;text-align:center;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;color:var(--muted);border:none;background:transparent;transition:all .2s;}
+.auth-tab.active{background:var(--forest);color:white;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.auth-title{font-family:'Playfair Display',serif;font-size:28px;color:var(--forest);margin-bottom:6px;}
+.auth-sub{font-size:14px;color:var(--muted);margin-bottom:28px;}
+.af{margin-bottom:18px;}
+.af label{display:block;font-size:12px;font-weight:600;color:var(--forest);margin-bottom:7px;text-transform:uppercase;letter-spacing:.6px;}
+.af input{width:100%;padding:12px 16px;background:#f9fafb;border:2px solid #e5e7eb;border-radius:12px;font-size:15px;color:var(--ink);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.af input:focus{border-color:var(--sage);background:white;}
+.btn-auth{width:100%;padding:14px;background:linear-gradient(135deg,var(--moss),var(--sage));color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .3s;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(45,106,79,.3);}
+.btn-auth:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(45,106,79,.4);}
+.auth-msg{margin-top:14px;padding:11px 16px;border-radius:10px;font-size:14px;text-align:center;display:none;}
+.auth-msg.error{background:#fef2f2;color:var(--danger);border:1px solid #fecaca;}
+.auth-msg.success{background:#f0fdf4;color:var(--success);border:1px solid #bbf7d0;}
+@media(max-width:768px){.auth-split{grid-template-columns:1fr;max-width:440px;}.auth-left{display:none;}}
+</style>
+</head>
+<body>
+
+<nav id="global-nav">
+  <a class="nav-logo" href="index.html">Crop<span>Sense</span></a>
+  <div class="nav-right">
+    <a class="btn-nav btn-nav-ghost" href="index.html">← Back to Home</a>
+  </div>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-split">
+    <!-- LEFT PANEL -->
+    <div class="auth-left">
+      <div class="auth-left-brand">Crop<span>Sense</span></div>
+      <div>
+        <h2 class="auth-left-h2">Smart Decisions<br>for Every Season</h2>
+        <p class="auth-left-p">Join thousands of farmers across India using CropSense to maximise yield and income.</p>
+        <div class="alf-list">
+          <div class="alf"><div class="alf-icon">🌱</div>Top 3 crop recommendations per analysis</div>
+          <div class="alf"><div class="alf-icon">🧪</div>NPK soil analysis for 7 soil types</div>
+          <div class="alf"><div class="alf-icon">💰</div>Live market prices in ₹/quintal</div>
+          <div class="alf"><div class="alf-icon">💬</div>AI farming assistant with voice input</div>
+        </div>
+        <div class="alc-row">
+          <span class="alc">🌾 Rice</span><span class="alc">🌿 Wheat</span><span class="alc">🌽 Maize</span><span class="alc">☕ Coffee</span><span class="alc">🍵 Tea</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="auth-right">
+      <div class="auth-tabs">
+        <button class="auth-tab" id="tab-login" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+      </div>
+      <div class="auth-title" id="auth-title">Welcome Back</div>
+      <div class="auth-sub" id="auth-sub">Login to your CropSense account</div>
+      
+      <!-- LOGIN FORM (Autofill DISABLED) -->
+      <form id="login-form" onsubmit="event.preventDefault(); handleLoginSubmit()" autocomplete="off">
+        <div class="af">
+          <label>Username</label>
+          <input type="text" id="auth-user" placeholder="Enter your username" autocomplete="off">
+        </div>
+        <div class="af">
+          <label>Password</label>
+          <input type="password" id="auth-pass" placeholder="Enter your password" autocomplete="off">
+        </div>
+        <button type="submit" class="btn-auth" id="auth-btn">Login</button>
+      </form>
+      
+      <!-- REGISTER FORM (Only Username - No Full Name, Autofill DISABLED) -->
+      <form id="register-form" style="display:none;" onsubmit="event.preventDefault(); handleRegisterSubmit()" autocomplete="off">
+        <div class="af">
+          <label>Username</label>
+          <input type="text" id="reg-username" placeholder="Choose a username" autocomplete="off">
+        </div>
+        <div class="af">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="Enter your email" autocomplete="off">
+        </div>
+        <div class="af">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="Create a password" autocomplete="off">
+        </div>
+        <button type="submit" class="btn-auth">Create Account</button>
+      </form>
+      
+      <div id="auth-msg" class="auth-msg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="data.js?v=3"></script>
+<script>
+// Redirect if already logged in
+if (SS.user) window.location.href = '/dashboard.html';
+
+// Read ?mode= from URL
+const urlMode = new URLSearchParams(location.search).get('mode') || 'login';
+
+function switchTab(mode) {
+  const loginForm = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+  const loginTab = document.getElementById('tab-login');
+  const registerTab = document.getElementById('tab-register');
+  const authTitle = document.getElementById('auth-title');
+  const authSub = document.getElementById('auth-sub');
+  
+  if (mode === 'login') {
+    loginForm.style.display = 'block';
+    registerForm.style.display = 'none';
+    loginTab.classList.add('active');
+    registerTab.classList.remove('active');
+    authTitle.textContent = 'Welcome Back';
+    authSub.textContent = 'Sign in to your CropSense account';
+  } else {
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+    loginTab.classList.remove('active');
+    registerTab.classList.add('active');
+    authTitle.textContent = 'Create Account';
+    authSub.textContent = 'Create an account to get started';
+  }
+  
+  // Clear all input fields when switching tabs
+  document.getElementById('auth-user').value = '';
+  document.getElementById('auth-pass').value = '';
+  document.getElementById('reg-username').value = '';
+  document.getElementById('reg-email').value = '';
+  document.getElementById('reg-password').value = '';
+  
+  // Clear message when switching tabs
+  document.getElementById('auth-msg').style.display = 'none';
+  
+  // Update URL
+  history.replaceState(null, '', `auth.html?mode=${mode}`);
+}
+
+// Login submit handler
+async function handleLoginSubmit() {
+  const username = document.getElementById('auth-user').value.trim();
+  const password = document.getElementById('auth-pass').value.trim();
+  
+  if (!username || !password) {
+    showMsg('error', 'Please enter both username and password');
+    return;
+  }
+  
+  await handleLogin(username, password);
+}
+
+// Register submit handler (NO FULL NAME)
+async function handleRegisterSubmit() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  
+  if (!username || !email || !password) {
+    showMsg('error', 'Please fill in all fields');
+    return;
+  }
+  
+  if (username.length < 3) {
+    showMsg('error', 'Username must be at least 3 characters');
+    return;
+  }
+  
+  if (password.length < 4) {
+    showMsg('error', 'Password must be at least 4 characters');
+    return;
+  }
+  
+  if (!email.includes('@') || !email.includes('.')) {
+    showMsg('error', 'Please enter a valid email address');
+    return;
+  }
+  
+  // Call register without full name (passing empty string)
+  await handleRegister('', username, email, password);
+}
+
+function showMsg(type, text) {
+  const msg = document.getElementById('auth-msg');
+  msg.className = 'auth-msg ' + type;
+  msg.textContent = text;
+  msg.style.display = 'block';
+  
+  // Auto hide after 5 seconds
+  setTimeout(() => {
+    msg.style.display = 'none';
+  }, 5000);
+}
+
+// Initialize based on URL mode
+switchTab(urlMode);
+</script>
+<script src="chatbot.js?v=3"></script>
+</body>
+</html>
